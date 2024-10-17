@@ -29,9 +29,9 @@ export function Solver(game) {
 
     this.shuffle = () => {
         // Shuffle the piecesDict
-        for (var i = this.piecesDict.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var temp = this.piecesDict[i];
+        for (let i = this.piecesDict.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const temp = this.piecesDict[i];
             this.piecesDict[i] = this.piecesDict[j];
             this.piecesDict[j] = temp;
         }
@@ -42,7 +42,7 @@ export function Solver(game) {
     };
 
     this.rotateString = (str, i) => {
-        for (var j = 0; j < i; j++) {
+        for (let j = 0; j < i; j++) {
             str = this.rotateStringOnce(str);
         }
         return str;
@@ -59,12 +59,12 @@ export function Solver(game) {
             bottom: false,
             left: false
         };
-        for (var i = 0; i < 4; i++) {
+        for (let i = 0; i < 4; i++) {
 
-            state.top = (pieceCode[0] === constraints[0] || (constraints[0] === "*" && pieceCode[0] !== "X")) ? true : false;
-            state.right = (pieceCode[1] === constraints[1] || (constraints[1] === "*" && pieceCode[1] !== "X")) ? true : false;
-            state.bottom = (pieceCode[2] === constraints[2] || (constraints[2] === "*" && pieceCode[2] !== "X")) ? true : false;
-            state.left = (pieceCode[3] === constraints[3] || (constraints[3] === "*" && pieceCode[3] !== "X")) ? true : false;
+            state.top = (pieceCode[0] === constraints[0] || (constraints[0] === "*" && pieceCode[0] !== "X"));
+            state.right = (pieceCode[1] === constraints[1] || (constraints[1] === "*" && pieceCode[1] !== "X"));
+            state.bottom = (pieceCode[2] === constraints[2] || (constraints[2] === "*" && pieceCode[2] !== "X"));
+            state.left = (pieceCode[3] === constraints[3] || (constraints[3] === "*" && pieceCode[3] !== "X"));
 
             if (state.top && state.right && state.bottom && state.left) {
                 match = i;
@@ -81,7 +81,7 @@ export function Solver(game) {
         // return a list of matching combinations, each item is a list of [rotation, piece]
         let matchingPiece = null;
         let listOfMatchingPieces = [];
-        for (var i = 0; i < this.piecesDict.length; i++) {
+        for (let i = 0; i < this.piecesDict.length; i++) {
             let match = this.match(this.piecesDict[i].name, constraints);
             if (match !== -1) {
                 matchingPiece = this.piecesDict[i];
@@ -104,7 +104,7 @@ export function Solver(game) {
 
     this.removeFromDict = (key) => {
         // remove a piece from the piecesDict
-        for (var i = 0; i < this.piecesDict.length; i++) {
+        for (let i = 0; i < this.piecesDict.length; i++) {
             if (this.piecesDict[i].name === key) {
                 this.piecesDict.splice(i, 1);
                 break;
@@ -170,7 +170,6 @@ export function Solver(game) {
         if (spot === 255) {
             // we have a solution, very unlikely to happen before end of days
             this.stop = true;
-            return;
         } else {
             spot++;
             let listOfAvailableMoves = this.findMatchingPieces(board.getConstraints(spot));
@@ -181,4 +180,4 @@ export function Solver(game) {
             }
         }
     }
-};
+}

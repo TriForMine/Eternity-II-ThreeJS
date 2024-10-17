@@ -1,11 +1,11 @@
 import { Board } from "./Board.js";
-import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/build/three.module.js';
+import { Clock } from 'three';
 
 
 export class Statistics {
     constructor(game) {
         this.game = game;
-        this.clock = new THREE.Clock();
+        this.clock = new Clock();
         this.moves_per_sec = "";
         this.elapsed_time = "";
         this.number_of_pieces = "";

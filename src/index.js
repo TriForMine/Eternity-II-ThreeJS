@@ -1,19 +1,18 @@
 // Author:     Chahan
 // Description: Main file for the game
 
-// importing three js from internet
-import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/build/three.module.js';
-import { OrbitControls } from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/examples/jsm/controls/OrbitControls.js';
-import * as dat from "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js";
+import {PerspectiveCamera, Scene, TextureLoader, WebGLRenderer} from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GUI } from "dat.gui";
 
 import { PieceCodes } from './ListPiece.js';
 import { Solver } from './Solver.js';
 import { Board } from './Board.js';
 import { Statistics } from './Statistics.js';
 
-var frames = 0;
+let frames = 0;
 
-var cameraAnimation = {
+const cameraAnimation = {
     "1": {
         camX: 1,
         camZ: 1,
@@ -41,9 +40,9 @@ var cameraAnimation = {
     }
 
 
-}
+};
 
-var game = {
+const game = {
     // game object with all the THREE.js objects
     scene1: null,
     scene2: null,
@@ -63,19 +62,19 @@ var game = {
     requestCameraSwitch: false,
     stats: null,
 
-    init: function() {
+    init: function () {
         //scene and renderer
-        this.scene1 = new THREE.Scene();
-        this.scene2 = new THREE.Scene();
+        this.scene1 = new Scene();
+        this.scene2 = new Scene();
         this.scene2.name = "scene2";
-        this.scene1.background = new THREE.TextureLoader().load("public/George-peabody-library.jpg");
-        this.renderer = new THREE.WebGLRenderer();
+        this.scene1.background = new TextureLoader().load("George-peabody-library.jpg");
+        this.renderer = new WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.autoClear = false;
 
         // we add the orbit controls to the camera
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera2 = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera2 = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.activeCamera = this.camera;
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls2 = new OrbitControls(this.camera2, this.renderer.domElement);
@@ -103,24 +102,24 @@ var game = {
 
     },
 
-    initGui: function() {
+    initGui: function () {
         // GUI with button to add a piece, remove a piece and run the solver
-        const gui = new dat.GUI();
+        const gui = new GUI();
         const commandFolder = gui.addFolder("Controls");
         const runCommand = {
-            RunSolver: function() {
+            RunSolver: function () {
                 game.solver.stop = false;
                 game.stats.start();
             }
         };
         const stopCommand = {
-            StopSolver: function() {
+            StopSolver: function () {
                 game.solver.stop = true;
                 this.intervalID = clearInterval(this.intervalID);
             }
         };
         const checkCommand = {
-            Check: function() {
+            Check: function () {
                 // check the integrity of the board every second
                 // print in the console the results
                 if (game.checkIntervalID) {
@@ -135,7 +134,7 @@ var game = {
         };
 
         const switchCameraCommand = {
-            SwitchCamera: function() {
+            SwitchCamera: function () {
                 if (game.requestCameraSwitch) return;
                 game.requestCameraSwitch = true;
             }
@@ -152,40 +151,42 @@ var game = {
         // the python code runs at about 2000 moves per second
         // we can do more than that in javascript
         const speedFolder = gui.addFolder("Speed");
-        speedFolder.add(game, "iterationPerFrame", 1, 5000).step(1).onChange(function(value) {
+        speedFolder.add(game, "iterationPerFrame", 1, 5000).step(1).onChange(function (value) {
             game.iterationPerFrame = value;
         });
         speedFolder.open();
 
 
         const statsFolder = gui.addFolder("Stats");
-        statsFolder.add(game.stats, "moves_per_sec").listen().onChange(function(_) {
+        statsFolder.add(game.stats, "moves_per_sec").listen().onChange(function (_) {
             updateDisplay();
         });
-        statsFolder.add(game.stats, "elapsed_time").listen().onChange(function(_) {
+        statsFolder.add(game.stats, "elapsed_time").listen().onChange(function (_) {
             updateDisplay();
         });
-        statsFolder.add(game.stats, "number_of_pieces").listen().onChange(function(_) {
+        statsFolder.add(game.stats, "number_of_pieces").listen().onChange(function (_) {
             updateDisplay();
         });
         statsFolder.open();
 
         const miniBoardFolder = gui.addFolder("Best Solution");
-        miniBoardFolder.add(game.stats, "best_solution").listen().onChange(function(_) {
+        miniBoardFolder.add(game.stats, "best_solution").listen().onChange(function (_) {
             updateDisplay();
         })
     },
-}
+};
 
 function cameraSwitch(time, duration) {
-    // setting the correct animation for the camera switch
-    if (game.activeCamera == game.camera) {
-        var from = cameraAnimation["1"];
-        var to = cameraAnimation["2"];
+    let to;
+    let from;
+// setting the correct animation for the camera switch
+    if (game.activeCamera === game.camera) {
+        from = cameraAnimation["1"];
+        to = cameraAnimation["2"];
     }
-    if (game.activeCamera == game.camera2) {
-        var from = cameraAnimation["3"];
-        var to = cameraAnimation["4"];
+    if (game.activeCamera === game.camera2) {
+        from = cameraAnimation["3"];
+        to = cameraAnimation["4"];
     }
 
     // easing the animation

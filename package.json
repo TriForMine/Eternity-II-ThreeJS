@@ -1,0 +1,22 @@
+{
+  "name": "eternity-ii-threejs",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "homepage": "https://triformine.github.io/Eternity-II-ThreeJS/",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy" : "bun run build",
+    "deploy" : "gh-pages -d dist"
+  },
+  "devDependencies": {
+    "vite": "5.4.9"
+  },
+  "dependencies": {
+    "dat.gui": "0.7.9",
+    "gh-pages": "^6.2.0",
+    "three": "0.169.0"
+  }
+}

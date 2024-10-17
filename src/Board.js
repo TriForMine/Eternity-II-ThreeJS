@@ -1,16 +1,16 @@
 // Author:     Chahan
 // Description: Board to represent the game board
-import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r122/build/three.module.js';
+import {BoxGeometry, Mesh, MeshBasicMaterial, TextureLoader} from 'three';
 export class Board {
     constructor(game, scene, placedpieces) {
         // this is the actual board
         this.game = game;
         this.scene = scene;
-        this.geometry = new THREE.BoxGeometry(5.15, 5.15, 0.1);
-        this.material = new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("public/BoardEternity2.png"), transparent: true, });
-        this.mesh = new THREE.Mesh(this.geometry, this.material);
-        this.mesh.rotateX(Math.PI * 0);
-        this.outlineTexture = new THREE.TextureLoader().load("public/outline.png");
+        this.geometry = new BoxGeometry(5.15, 5.15, 0.1);
+        this.material = new MeshBasicMaterial({ map: new TextureLoader().load("BoardEternity2.png"), transparent: true, });
+        this.mesh = new Mesh(this.geometry, this.material);
+        this.mesh.rotateX(Math.pi * 0);
+        this.outlineTexture = new TextureLoader().load("outline.png");
         this.placedpieces = placedpieces;
         this.scene.add(this.mesh);
     }
@@ -105,7 +105,7 @@ export class Board {
 
     checkIntegrity() {
         // Définir la couleur rouge
-        var err_count = 0;
+        let err_count = 0;
         // check if the board is still valid
         for (let i = 0; i < 256; i++) {
             if (this.placedpieces[i] !== null && this.placedpieces[i] !== undefined) {
