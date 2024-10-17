@@ -15,7 +15,7 @@ export class Piece {
             this.isClone = true;
         } else {
             this.geometry = new BoxGeometry(scale, scale, 0.1);
-            this.material = new MeshBasicMaterial({ map: new TextureLoader().load("pieces/" + name + ".png"), transparent: false, });
+            this.material = new MeshBasicMaterial({ map: new TextureLoader().load(`/Eternity-II-ThreeJS/pieces/${name}.png`), transparent: false, });
             this.mesh = new Mesh(this.geometry, this.material);
         }
     };
@@ -23,7 +23,7 @@ export class Piece {
     outline(scene) {
         // generates an outline around the piece to show error on the board
         this.outlineGeometry = new BoxGeometry(5 / 16.7, 5 / 16.7, 0.1);
-        this.outlineMaterial = new MeshBasicMaterial({ map: new TextureLoader().load("outline.png"), transparent: true, });
+        this.outlineMaterial = new MeshBasicMaterial({ map: new TextureLoader().load("/Eternity-II-ThreeJS/outline.png"), transparent: true, });
         this.outlineMesh = new Mesh(this.outlineGeometry, this.outlineMaterial);
         scene.add(this.outlineMesh);
         this.outlineMesh.position.z = 0.1;

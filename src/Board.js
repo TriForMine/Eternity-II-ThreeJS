@@ -7,10 +7,9 @@ export class Board {
         this.game = game;
         this.scene = scene;
         this.geometry = new BoxGeometry(5.15, 5.15, 0.1);
-        this.material = new MeshBasicMaterial({ map: new TextureLoader().load("BoardEternity2.png"), transparent: true, });
+        this.material = new MeshBasicMaterial({ map: new TextureLoader().load("/Eternity-II-ThreeJS/BoardEternity2.png"), transparent: true, });
         this.mesh = new Mesh(this.geometry, this.material);
-        this.mesh.rotateX(Math.pi * 0);
-        this.outlineTexture = new TextureLoader().load("outline.png");
+        this.outlineTexture = new TextureLoader().load("/Eternity-II-ThreeJS/outline.png");
         this.placedpieces = placedpieces;
         this.scene.add(this.mesh);
     }

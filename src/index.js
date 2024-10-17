@@ -1,7 +1,7 @@
 // Author:     Chahan
 // Description: Main file for the game
 
-import {PerspectiveCamera, Scene, TextureLoader, WebGLRenderer} from 'three';
+import { PerspectiveCamera, Scene, TextureLoader, WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from "dat.gui";
 
@@ -28,18 +28,16 @@ const cameraAnimation = {
     "3": {
         // starting point 3 is "1" - "2"
         camX: 0,
-        camZ: .665,
+        camZ: 0.665,
         sceneX: -5.5,
         sceneZ: -2
     },
     "4": {
         camX: 1,
-        camZ: .335,
+        camZ: 0.335,
         sceneX: 5,
         sceneZ: 2
     }
-
-
 };
 
 const game = {
@@ -67,7 +65,7 @@ const game = {
         this.scene1 = new Scene();
         this.scene2 = new Scene();
         this.scene2.name = "scene2";
-        this.scene1.background = new TextureLoader().load("George-peabody-library.jpg");
+        this.scene1.background = new TextureLoader().load("/Eternity-II-ThreeJS/George-peabody-library.jpg");
         this.renderer = new WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.autoClear = false;
@@ -83,7 +81,6 @@ const game = {
         this.camera2.position.z = 1;
         this.camera2.position.x = 1;
 
-
         // we initialize the board with 255 null pieces
         // to prevent any cases off the list to be empty
         let placedP = []
@@ -94,12 +91,13 @@ const game = {
         this.solver = new Solver(this);
         this.solver.initDict(PieceCodes);
         this.solver.initStack(this.board);
-        resize();
+
+        resize(); // Initial resize
+        window.addEventListener('resize', resize, false); // Add resize event listener
+
         document.body.appendChild(this.renderer.domElement);
         // we add the stats to the scene
         this.stats = new Statistics(this);
-
-
     },
 
     initGui: function () {
@@ -156,7 +154,6 @@ const game = {
         });
         speedFolder.open();
 
-
         const statsFolder = gui.addFolder("Stats");
         statsFolder.add(game.stats, "moves_per_sec").listen().onChange(function (_) {
             updateDisplay();
@@ -179,7 +176,7 @@ const game = {
 function cameraSwitch(time, duration) {
     let to;
     let from;
-// setting the correct animation for the camera switch
+    // setting the correct animation for the camera switch
     if (game.activeCamera === game.camera) {
         from = cameraAnimation["1"];
         to = cameraAnimation["2"];
@@ -197,12 +194,11 @@ function cameraSwitch(time, duration) {
     game.scene1.position.z = easeOutQuad(time, from.sceneZ, to.sceneZ, duration);
 }
 
-
 function easeOutQuad(t, b, c, d) {
     return -c * (t /= d) * (t - 2) + b;
 }
 
-//rendering
+// Rendering
 function animate() {
     requestAnimationFrame(animate);
     if (!game.solver.stop) {
@@ -230,15 +226,14 @@ function animate() {
         }
     }
 
-
     game.controls.update();
 
     game.renderer.clear();
     game.renderer.render(game.scene1, game.camera);
     game.renderer.clearDepth();
     game.renderer.render(game.scene2, game.camera2);
-    resize();
 }
+
 game.init();
 game.initGui();
 
@@ -250,11 +245,15 @@ game.solver.placeCenterPiece(game.board);
 animate();
 
 function resize() {
-    game.renderer.height = window.innerHeight;
-    game.renderer.width = window.innerWidth;
-    game.renderer.setSize(game.renderer.width, game.renderer.height);
-    game.camera.aspect = game.renderer.width / game.renderer.height;
-    game.camera2.aspect = game.renderer.width / game.renderer.height;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    // Update renderer size
+    game.renderer.setSize(width, height);
+
+    // Update camera aspect ratios and projection matrices
+    game.camera.aspect = width / height;
+    game.camera2.aspect = width / height;
     game.camera.updateProjectionMatrix();
     game.camera2.updateProjectionMatrix();
 }
