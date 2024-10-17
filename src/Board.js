@@ -1,13 +1,17 @@
 // Author:     Chahan
 // Description: Board to represent the game board
-import {BoxGeometry, Mesh, MeshBasicMaterial, TextureLoader} from 'three';
+import {BoxGeometry, Mesh, MeshBasicMaterial, SRGBColorSpace, TextureLoader} from 'three';
 export class Board {
     constructor(game, scene, placedpieces) {
         // this is the actual board
         this.game = game;
         this.scene = scene;
         this.geometry = new BoxGeometry(5.15, 5.15, 0.1);
-        this.material = new MeshBasicMaterial({ map: new TextureLoader().load("/Eternity-II-ThreeJS/BoardEternity2.png"), transparent: true, });
+        let texture = new TextureLoader().load("/Eternity-II-ThreeJS/BoardEternity2.png");
+        texture.colorSpace = SRGBColorSpace;
+
+        this.material = new MeshBasicMaterial({ map: texture, transparent: true });
+
         this.mesh = new Mesh(this.geometry, this.material);
         this.outlineTexture = new TextureLoader().load("/Eternity-II-ThreeJS/outline.png");
         this.placedpieces = placedpieces;

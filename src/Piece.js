@@ -1,4 +1,4 @@
-import {BoxGeometry, Mesh, MeshBasicMaterial, TextureLoader} from 'three';
+import {BoxGeometry, Mesh, MeshBasicMaterial, SRGBColorSpace, TextureLoader} from 'three';
 
 export class Piece {
     constructor(name, mesh, rotaton = 0, scale = 5 / 16.7) {
@@ -15,7 +15,9 @@ export class Piece {
             this.isClone = true;
         } else {
             this.geometry = new BoxGeometry(scale, scale, 0.1);
-            this.material = new MeshBasicMaterial({ map: new TextureLoader().load(`/Eternity-II-ThreeJS/pieces/${name}.png`), transparent: false, });
+            const texture = new TextureLoader().load(`/Eternity-II-ThreeJS/pieces/${name}.png`);
+            texture.colorSpace = SRGBColorSpace;
+            this.material = new MeshBasicMaterial({ map: texture, transparent: false, });
             this.mesh = new Mesh(this.geometry, this.material);
         }
     };

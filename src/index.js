@@ -1,7 +1,7 @@
 // Author:     Chahan
 // Description: Main file for the game
 
-import { PerspectiveCamera, Scene, TextureLoader, WebGLRenderer } from 'three';
+import {PerspectiveCamera, Scene, SRGBColorSpace, TextureLoader, WebGLRenderer} from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from "dat.gui";
 
@@ -66,6 +66,9 @@ const game = {
         this.scene2 = new Scene();
         this.scene2.name = "scene2";
         this.scene1.background = new TextureLoader().load("/Eternity-II-ThreeJS/George-peabody-library.jpg");
+        this.scene1.background.colorSpace = SRGBColorSpace;
+        this.scene1.background.wrapS = this.scene1.background.wrapT = 1000;
+        this.scene1.background.repeat.set(1, 1);
         this.renderer = new WebGLRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.autoClear = false;
