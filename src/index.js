@@ -30,7 +30,7 @@ import {Statistics} from './Statistics.js';
  */
 const easeOutQuad = (t, b, c, d) => {
     const e = t / d;
-    return -c * e * (e / 2) + b;
+    return -c * e * (e - 2) + b;
 }
 
 // Camera animation configurations
@@ -73,11 +73,9 @@ class CameraController {
         if (activeCamera === this.game.camera) {
             from = CAMERA_ANIMATION_CONFIG["1"];
             to = CAMERA_ANIMATION_CONFIG["2"];
-        } else if (activeCamera === this.game.camera2) {
+        } else {
             from = CAMERA_ANIMATION_CONFIG["3"];
             to = CAMERA_ANIMATION_CONFIG["4"];
-        } else {
-            return;
         }
 
         const t = this.frames;
@@ -85,6 +83,7 @@ class CameraController {
 
         this.game.camera2.position.x = easeOutQuad(t, from.camX, to.camX, d);
         this.game.camera2.position.z = easeOutQuad(t, from.camZ, to.camZ, d);
+
         this.game.scene1.position.x = easeOutQuad(t, from.sceneX, to.sceneX, d);
         this.game.scene1.position.z = easeOutQuad(t, from.sceneZ, to.sceneZ, d);
 
@@ -157,6 +156,7 @@ class GUIController {
                 this.game.solver.stop = true;
                 clearInterval(this.game.intervalID);
                 this.game.intervalID = null;
+                this.game.stats.stop();
             }
         };
 
@@ -282,9 +282,8 @@ class Game {
         this.controls2 = new OrbitControls(this.camera2, this.renderer.domElement);
         this.controls2.enabled = false;
 
-        this.camera.position.z = 5;
-        this.camera2.position.x = 1;
-        this.camera2.position.z = 1;
+        this.camera.position.set(0, 0, 5);
+        this.camera2.position.set(1, 0, 1);
 
         // Initialize background
         const loader = new TextureLoader();
