@@ -42,6 +42,7 @@ export class Statistics {
         this.number_of_pieces = "";
         this.best_solution = "";
         this.intervalID = null;
+        this.movesPerSec = 0;
         this.bestSolution = 0;
         // mini board with the best solution found
         this.miniBoard = new Board(this.game, this.game.scene2, [...this.game.board.placedpieces]);
@@ -73,6 +74,7 @@ export class Statistics {
             }
         }
         this.moves_per_sec = `${Math.floor(this.game.solver.numMoves)} moves/s`;
+        this.movesPerSec = Math.floor(this.game.solver.numMoves);
         this.elapsed_time = this.formatHour(this.clock.getElapsedTime());
         this.number_of_pieces = `${this.game.solver.lastPlacedCase + 1} /256`;
         this.game.solver.numMoves = 0;

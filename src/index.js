@@ -13,12 +13,24 @@ import {
     WebGLRenderer
 } from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {GUI} from 'dat.gui';
+import {Pane} from 'tweakpane'
 
 import {PieceCodes} from './ListPiece.js';
 import {Solver} from './Solver.js';
 import {Board} from './Board.js';
 import {Statistics} from './Statistics.js';
+
+/**
+ * @typedef {import('./Game.js').Game} Game
+ * @typedef {import('./Board.js').Board} Board
+ * @typedef {import('./Solver.js').Solver} Solver
+ * @typedef {import('./Statistics.js').Statistics} Statistics
+ * @typedef {import('three').PerspectiveCamera} PerspectiveCamera
+ * @typedef {import('three').Scene} Scene
+ * @typedef {import('three').WebGLRenderer} WebGLRenderer
+ * @typedef {import('three/addons/controls/OrbitControls.js').OrbitControls} OrbitControls
+ * @typedef {import('tweakpane').Pane} Pane
+ */
 
 /**
  * Easing function for animations
@@ -43,6 +55,10 @@ const CAMERA_ANIMATION_CONFIG = {
 
 /**
  * Class to handle camera switching and animations
+ * @class
+ * @property {Game} game - The game instance
+ * @property {number} frames - The number of frames
+ * @property {number} duration - The duration of the animation
  */
 class CameraController {
     /**
@@ -116,7 +132,10 @@ class CameraController {
 }
 
 /**
- * Class to handle GUI setup and interactions
+ * Class to handle GUI setup and interactions using tweakpane
+ * @class
+ * @property {Game} game - The game instance
+ * @property {Pane} pane - The tweakpane instance
  */
 class GUIController {
     /**
@@ -124,7 +143,7 @@ class GUIController {
      */
     constructor(game) {
         this.game = game;
-        this.gui = new GUI();
+        this.pane = new Pane(); // Initialize tweakpane
         this.setupFolders();
     }
 
@@ -142,106 +161,118 @@ class GUIController {
      * Sets up the command folder in the GUI
      */
     setupCommandFolder() {
-        const commandFolder = this.gui.addFolder("Controls");
+        const commandFolder = this.pane.addFolder({
+            title: 'Controls'
+        });
 
-        const runCommand = {
-            RunSolver: () => {
-                this.game.solver.stop = false;
-                this.game.stats.start();
+        // RunSolver Button
+        commandFolder.addButton({
+            title: 'Run Solver'
+        }).on('click', () => {
+            this.game.solver.stop = false;
+            this.game.stats.start();
+        });
+
+        // StopSolver Button
+        commandFolder.addButton({
+            title: 'Stop Solver'
+        }).on('click', () => {
+            this.game.solver.stop = true;
+            clearInterval(this.game.intervalID);
+            this.game.intervalID = null;
+            this.game.stats.stop();
+        });
+
+        // Check Button
+        commandFolder.addButton({
+            title: 'Check'
+        }).on('click', () => {
+            if (this.game.checkIntervalID) {
+                clearInterval(this.game.checkIntervalID);
+                this.game.checkIntervalID = null;
+            } else {
+                this.game.checkIntervalID = setInterval(() => {
+                    this.game.board.checkIntegrity();
+                    this.game.stats.miniBoard.checkIntegrity();
+                }, 1000);
             }
-        };
+        });
 
-        const stopCommand = {
-            StopSolver: () => {
-                this.game.solver.stop = true;
-                clearInterval(this.game.intervalID);
-                this.game.intervalID = null;
-                this.game.stats.stop();
-            }
-        };
+        // SwitchCamera Button
+        commandFolder.addButton({
+            title: 'Switch Camera'
+        }).on('click', () => {
+            this.game.cameraController.switchCamera();
+        });
 
-        const checkCommand = {
-            Check: () => {
-                if (this.game.checkIntervalID) {
-                    clearInterval(this.game.checkIntervalID);
-                    this.game.checkIntervalID = null;
-                } else {
-                    this.game.checkIntervalID = setInterval(() => {
-                        this.game.board.checkIntegrity();
-                        this.game.stats.miniBoard.checkIntegrity();
-                    }, 1000);
-                }
-            }
-        };
-
-        const switchCameraCommand = {
-            SwitchCamera: () => this.game.cameraController.switchCamera()
-        };
-
-        commandFolder.add(runCommand, "RunSolver");
-        commandFolder.add(stopCommand, "StopSolver");
-        commandFolder.add(checkCommand, "Check");
-        commandFolder.add(switchCameraCommand, "SwitchCamera");
-        commandFolder.open();
+        commandFolder.expanded = true; // Open the folder by default
     }
 
     /**
      * Sets up the speed folder in the GUI
      */
     setupSpeedFolder() {
-        const speedFolder = this.gui.addFolder("Speed");
+        const speedFolder = this.pane.addFolder({
+            title: 'Speed'
+        });
 
-        speedFolder
-            .add(this.game, "iterationPerFrame", 1, 5000)
-            .step(1)
-            .name("Iterations/Frame")
-            .onChange(value => {
-                this.game.iterationPerFrame = value;
-            });
+        // Iterations/Frame Slider
+        speedFolder.addBinding(this.game, 'iterationPerFrame', {
+            label: 'Iterations / Frame',
+            min: 1,
+            max: 5000,
+            step: 1
+        }).on('change', (value) => {
+            this.game.iterationPerFrame = value.value;
+        });
 
-        speedFolder.open();
+        speedFolder.expanded = true;
     }
 
     /**
      * Sets up the stats folder in the GUI
      */
     setupStatsFolder() {
-        const statsFolder = this.gui.addFolder("Stats");
+        const statsFolder = this.pane.addFolder({
+            title: 'Stats'
+        });
 
-        statsFolder
-            .add(this.game.stats, "moves_per_sec")
-            .name("Moves/Sec")
-            .listen()
-            .onChange(() => this.game.stats.updateDisplay());
+        // Moves Per Second Display
+        statsFolder.addBinding(this.game.stats, 'moves_per_sec', {
+            label: 'Moves Per Second',
+            readonly: true
+        });
 
-        statsFolder
-            .add(this.game.stats, "elapsed_time")
-            .name("Elapsed Time")
-            .listen()
-            .onChange(() => this.game.stats.updateDisplay());
+        // Elapsed Time Display
+        statsFolder.addBinding(this.game.stats, 'elapsed_time', {
+            label: 'Elapsed Time',
+            readonly: true
+        });
 
-        statsFolder
-            .add(this.game.stats, "number_of_pieces")
-            .name("Number of Pieces")
-            .listen()
-            .onChange(() => this.game.stats.updateDisplay());
+        // Number of Pieces Display
+        statsFolder.addBinding(this.game.stats, 'number_of_pieces', {
+            label: 'Number of Pieces',
+            readonly: true
+        });
 
-        statsFolder.open();
+        statsFolder.expanded = true;
     }
 
     /**
      * Sets up the mini board folder in the GUI
      */
     setupMiniBoardFolder() {
-        const miniBoardFolder = this.gui.addFolder("Best Solution");
+        const miniBoardFolder = this.pane.addFolder({
+            title: 'Best Solution'
+        });
 
-        miniBoardFolder
-            .add(this.game.stats, "best_solution")
-            .name("Best Solution")
-            .listen()
-            .onChange(() => this.game.stats.updateDisplay());
+        // Best Solution Display
+        miniBoardFolder.addBinding(this.game.stats, 'best_solution', {
+            label: 'Best Solution',
+            readonly: true
+        });
 
-        miniBoardFolder.open();
+        miniBoardFolder.expanded = true;
     }
 }
 
