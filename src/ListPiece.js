@@ -1,7 +1,26 @@
-// Description: List of all pieces in the game
-// Author:      Chahan
-// AQXX 
-// A -> TOP, Q -> RIGHT, X -> BOTTOM, X -> LEFT
+/**
+ * @file ListPiece.js
+ * @author Chahan
+ * @author Quentin
+ * @description List of all pieces in the game
+ */
+
+/**
+ * List of all piece codes in the game.
+ * Each code represents a piece with specific edges.
+ * The format is "ABCD" where:
+ * - A: Top edge
+ * - B: Right edge
+ * - C: Bottom edge
+ * - D: Left edge
+ *
+ * Example:
+ * "AQXX" means:
+ * - Top edge: A
+ * - Right edge: Q
+ * - Bottom edge: X
+ * - Left edge: X
+ */
 export const PieceCodes = [
     "AQXX", "AEXX", "IQXX", "QIXX", "BAXA", "JIXA", "FAXA", "FMXA", "KQXA", "GEXA", "OIXA", "HEXA", "HMXA", "UEXA", "JAXI", "RQXI", "NMXI",
     "SMXI", "GIXI", "OIXI", "DEXI", "LAXI", "LMXI", "TAXI", "UAXI", "BIXQ", "BQXQ", "JQXQ", "RQXQ", "GMXQ", "OIXQ", "TQXQ", "HIXQ", "HEXQ",
