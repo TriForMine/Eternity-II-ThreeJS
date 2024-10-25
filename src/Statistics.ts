@@ -33,7 +33,7 @@ export class Statistics {
 		this.elapsed_time = "";
 		this.number_of_pieces = "";
 		this.best_solution = "";
-		this.fps_display = "FPS: 0";
+		this.fps_display = "";
 		this.intervalID = undefined;
 		this.movesPerSec = 0;
 		this.bestSolution = 0;
