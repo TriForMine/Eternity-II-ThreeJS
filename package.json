@@ -6,7 +6,7 @@
   "homepage": "https://triformine.github.io/Eternity-II-ThreeJS/",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "predeploy": "bun run build",
     "deploy": "gh-pages -d dist"
@@ -14,9 +14,14 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@pbr1111/vite-plugin-biome": "^1.1.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "typescript": "^5.6.3",
     "vite": "5.4.9"
   },
   "dependencies": {
+    "@tweakpane/core": "^2.0.4",
     "gh-pages": "^6.2.0",
     "three": "0.169.0",
     "tweakpane": "^4.0.4"
