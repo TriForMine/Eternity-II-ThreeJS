@@ -20,13 +20,13 @@ class TextureManager {
 
 	public getTexture(name: string): Texture {
 		if (this.textures.has(name)) {
-			return this.textures.get(name)!;
-		} else {
-			const texture = this.loader.load(`/Eternity-II-ThreeJS/pieces/${name}.png`);
-			texture.colorSpace = SRGBColorSpace;
-			this.textures.set(name, texture);
-			return texture;
+			return <Texture>this.textures.get(name);
 		}
+		
+		const texture = this.loader.load(`/Eternity-II-ThreeJS/pieces/${name}.png`);
+		texture.colorSpace = SRGBColorSpace;
+		this.textures.set(name, texture);
+		return texture;
 	}
 }
 

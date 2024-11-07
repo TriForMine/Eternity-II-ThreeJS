@@ -6,14 +6,24 @@ import {PieceCodes} from './ListPiece'; // Import the known piece codes
 import type {PieceCode} from './ListPiece';
 import {match} from "./Utils.ts";
 
-interface SolverMessage {
-	type: 'init' | 'solve' | 'stop';
-	data?: any;
-}
+export type SolverMessage = {
+	type: 'init';
+	data: {
+		pieceCodes: PieceCode[];
+	};
+} | {
+	type: 'solve';
+} | {
+	type: 'stop';
+};
 
-interface SolverResponse {
+export interface SolverResponse {
 	type: 'update' | 'finished';
-	data: any;
+	data: {
+		boardState: ArrayBuffer;
+		numMoves: number;
+		lastPlacedCase: number;
+	};
 }
 
 class SolverWorker {

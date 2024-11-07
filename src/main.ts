@@ -16,8 +16,9 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {Pane} from 'tweakpane'
 
 import {PieceCodes} from './ListPiece.ts';
+import type {SolverResponse} from './SolverWorker.ts'
 import SolverWorker from './SolverWorker.ts?worker';
-import {Board} from './Board.ts';
+import {Board, type BoardState} from './Board.ts';
 import {Statistics} from './Statistics.ts';
 
 const easeOutQuad = (t: number, b: number, c: number, d: number) => {
@@ -344,11 +345,11 @@ export class Game {
 	/**
 	 * Handles messages received from the solver worker.
 	 */
-	onSolverMessage(event: MessageEvent<any>) {
+	onSolverMessage(event: MessageEvent<SolverResponse>) {
 		const message = event.data;
 		switch (message.type) {
 			case 'update':
-			case 'finished':
+			case 'finished': {
 				const {boardState, numMoves, lastPlacedCase} = message.data;
 				const dataArray = new Uint8Array(boardState);
 				const numPieces = dataArray.length / 3;
@@ -381,13 +382,14 @@ export class Game {
 					this.stopSolver();
 				}
 				break;
+			}
 		}
 	}
 
 	/**
 	 * Updates the board based on data received from the solver worker.
 	 */
-	updateBoard(boardState: any) {
+	updateBoard(boardState: BoardState) {
 		this.board.updateFromState(boardState);
 	}
 
