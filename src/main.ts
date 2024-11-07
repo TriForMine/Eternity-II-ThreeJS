@@ -20,6 +20,7 @@ import type {SolverResponse} from './SolverWorker.ts'
 import SolverWorker from './SolverWorker.ts?worker';
 import {Board, type BoardState} from './Board.ts';
 import {Statistics} from './Statistics.ts';
+import TextureManager from "./TextureManager.ts";
 
 const easeOutQuad = (t: number, b: number, c: number, d: number) => {
 	const e = t / d;
@@ -469,6 +470,8 @@ export class Game {
 		this.animate();
 	}
 }
+
+TextureManager.getInstance().loadTextures(PieceCodes);
 
 // Initialize and start the game
 const game = new Game();
