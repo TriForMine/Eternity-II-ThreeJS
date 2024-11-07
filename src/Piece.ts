@@ -4,12 +4,14 @@
  * @author Quentin
  * @description Piece class for the game
  */
-import {BoxGeometry, Mesh, MeshBasicMaterial, TextureLoader, SRGBColorSpace, type Scene} from 'three';
+import {BoxGeometry, Mesh, MeshBasicMaterial, TextureLoader, type Scene} from 'three';
 import type {PieceCode} from "./ListPiece.ts";
+import {rotateString} from "./Utils.ts";
+import TextureManager from "./TextureManager.ts";
 
 export class Piece {
 	name: PieceCode;
-	mesh: Mesh;
+	mesh?: Mesh;
 	rotation: number;
 	scale: number;
 	isClone: boolean;
@@ -19,22 +21,27 @@ export class Piece {
 	outlineMaterial?: MeshBasicMaterial;
 	outlineMesh?: Mesh;
 
-	constructor(name: string, mesh?: Mesh, rotation = 0, scale: number = 5 / 16.7) {
+	get rotatedName(): PieceCode {
+		return rotateString(this.name, this.rotation);
+	}
+
+	constructor(name: PieceCode, mesh?: Mesh, rotation = 0, scale: number = 5 / 16.7) {
 		this.name = name;
 		this.scale = scale;
 		this.rotation = rotation;
 		this.isClone = false;
 
-		if (mesh) {
-			this.mesh = mesh;
-			this.mesh.scale.set(scale, scale, 0.1);
-			this.isClone = true;
-		} else {
-			this.geometry = new BoxGeometry(scale, scale, 0.1);
-			const texture = new TextureLoader().load(`/Eternity-II-ThreeJS/pieces/${name}.png`);
-			texture.colorSpace = SRGBColorSpace;
-			this.material = new MeshBasicMaterial({map: texture, transparent: false,});
-			this.mesh = new Mesh(this.geometry, this.material);
+		if (typeof document !== 'undefined') {
+			if (mesh) {
+				this.mesh = mesh;
+				this.mesh.scale.set(scale, scale, 0.1);
+				this.isClone = true;
+			} else {
+				this.geometry = new BoxGeometry(scale, scale, 0.1);
+				const texture = TextureManager.getInstance().getTexture(name);
+				this.material = new MeshBasicMaterial({map: texture, transparent: false});
+				this.mesh = new Mesh(this.geometry, this.material);
+			}
 		}
 	}
 
@@ -50,6 +57,9 @@ export class Piece {
 		this.outlineMesh = new Mesh(this.outlineGeometry, this.outlineMaterial);
 		scene.add(this.outlineMesh);
 		this.outlineMesh.position.z = 0.1;
+
+		if (!this.mesh) return;
+
 		this.outlineMesh.position.x = this.mesh.position.x;
 		this.outlineMesh.position.y = this.mesh.position.y;
 	}
@@ -58,6 +68,8 @@ export class Piece {
 	 * Removes the piece from the scene.
 	 */
 	remove(scene: Scene) {
+		if (!this.mesh) return;
+
 		scene.remove(this.mesh);
 	}
 
@@ -65,6 +77,9 @@ export class Piece {
 	 * Clones the current piece.
 	 */
 	clone(): Piece {
-		return new Piece(this.name, this.mesh.clone(), 0, 2.3 / 16.7);
+		if (!this.mesh) return new Piece(this.name, undefined, 0, 2.3 / 16.7);
+		const mesh = this.mesh.clone();
+		mesh.rotation.z = 0;
+		return new Piece(this.name, mesh, this.rotation, 2.3 / 16.7);
 	}
 }

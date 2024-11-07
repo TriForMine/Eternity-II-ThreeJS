@@ -20,6 +20,8 @@ export class Statistics {
 	movesPerSec: number;
 	bestSolution: number;
 	miniBoard: Board;
+	lastPlacedCase: number;
+	numMoves: number;
 
 	// FPS-related properties
 	fps_display: string;
@@ -39,6 +41,8 @@ export class Statistics {
 		this.bestSolution = 0;
 		this.frameCount = 0;
 		this.fps = 0;
+		this.numMoves = 0;
+		this.lastPlacedCase = -1;
 
 		// mini board with the best solution found
 		this.miniBoard = new Board(this.game, this.game.scene2, [...this.game.board.placedPieces.filter((piece) => piece !== undefined)]);
@@ -71,8 +75,8 @@ export class Statistics {
 		this.frameCount = 0; // Reset frame count for the next second
 
 		// Update the infos every second in the label
-		if (this.bestSolution < this.game.solver.lastPlacedCase) {
-			this.bestSolution = this.game.solver.lastPlacedCase;
+		if (this.bestSolution < this.lastPlacedCase) {
+			this.bestSolution = this.lastPlacedCase;
 			this.miniBoard.clearBoard();
 			const clone_of_pieces = this.game.board.clone();
 			for (let i = 0; i < this.bestSolution; i++) {
@@ -83,11 +87,11 @@ export class Statistics {
 				}
 			}
 		}
-		this.moves_per_sec = `${Math.floor(this.game.solver.numMoves)} moves/s`;
-		this.movesPerSec = Math.floor(this.game.solver.numMoves);
+		this.moves_per_sec = `${Math.floor(this.numMoves)} moves/s`;
+		this.movesPerSec = Math.floor(this.numMoves);
 		this.elapsed_time = this.formatHour(this.clock.getElapsedTime());
-		this.number_of_pieces = `${this.game.solver.lastPlacedCase + 1} /256`;
-		this.game.solver.numMoves = 0;
+		this.number_of_pieces = `${this.lastPlacedCase + 1} /256`;
+		this.numMoves = 0;
 		this.best_solution = `${this.miniBoard.length()} /256`;
 	}
 

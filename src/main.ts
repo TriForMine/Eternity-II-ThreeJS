@@ -16,7 +16,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {Pane} from 'tweakpane'
 
 import {PieceCodes} from './ListPiece.ts';
-import {Solver} from './Solver.ts';
+import SolverWorker from './SolverWorker.ts?worker';
 import {Board} from './Board.ts';
 import {Statistics} from './Statistics.ts';
 
@@ -146,7 +146,7 @@ class GUIController {
 		commandFolder.addButton({
 			title: 'Run Solver'
 		}).on('click', () => {
-			this.game.solver.stop = false;
+			this.game.solverWorker.postMessage({type: 'solve'});
 			this.game.stats.start();
 		});
 
@@ -154,7 +154,7 @@ class GUIController {
 		commandFolder.addButton({
 			title: 'Stop Solver'
 		}).on('click', () => {
-			this.game.solver.stop = true;
+			this.game.solverWorker.postMessage({type: 'stop'});
 			this.game.stats.stop();
 		});
 
@@ -189,16 +189,6 @@ class GUIController {
 	setupSpeedFolder() {
 		const speedFolder = this.pane.addFolder({
 			title: 'Speed'
-		});
-
-		// Iterations/Frame Slider
-		speedFolder.addBinding(this.game, 'iterationPerFrame', {
-			label: 'Iterations / Frame',
-			min: 1,
-			max: 5000,
-			step: 1
-		}).on('change', (value) => {
-			this.game.iterationPerFrame = value.value;
 		});
 
 		speedFolder.expanded = true;
@@ -257,7 +247,6 @@ class GUIController {
 }
 
 export class Game {
-	iterationPerFrame: number;
 	requestCameraSwitch: boolean;
 	scene1: Scene;
 	scene2: Scene;
@@ -268,15 +257,15 @@ export class Game {
 	controls: OrbitControls;
 	controls2: OrbitControls;
 	board: Board;
-	solver: Solver;
 	stats: Statistics;
 	guiController: GUIController;
 	cameraController: CameraController;
 	checkIntervalID?: number;
+	solverWorker = new SolverWorker();
+	lastTime: number;
 
 	constructor() {
 		// Iteration settings
-		this.iterationPerFrame = 1;
 		this.requestCameraSwitch = false;
 
 		this.scene1 = new Scene();
@@ -321,9 +310,6 @@ export class Game {
 		// Initialize board and solver
 		const placedPieces = Array(255).fill(null);
 		this.board = new Board(this, this.scene1, placedPieces);
-		this.solver = new Solver(this);
-		this.solver.initDict(PieceCodes);
-		this.solver.initStack(this.board);
 
 		// Initialize statistics
 		this.stats = new Statistics(this);
@@ -343,6 +329,9 @@ export class Game {
 		document.body.appendChild(this.renderer.domElement);
 
 		this.checkIntervalID = undefined;
+
+		this.solverWorker.onmessage = this.onSolverMessage.bind(this);
+		this.lastTime = Date.now()
 	}
 
 	/**
@@ -353,16 +342,83 @@ export class Game {
 	}
 
 	/**
+	 * Handles messages received from the solver worker.
+	 */
+	onSolverMessage(event: MessageEvent<any>) {
+		const message = event.data;
+		switch (message.type) {
+			case 'update':
+			case 'finished':
+				const {boardState, numMoves, lastPlacedCase} = message.data;
+				const dataArray = new Uint8Array(boardState);
+				const numPieces = dataArray.length / 3;
+				const boardStateArray = [];
+
+				for (let i = 0; i < numPieces; i++) {
+					const index = i * 3;
+					const spot = dataArray[index];
+					const pieceIndex = dataArray[index + 1];
+					const rotation = dataArray[index + 2];
+					const name = PieceCodes[pieceIndex];
+
+					boardStateArray.push({
+						spot,
+						name,
+						rotation,
+					});
+				}
+
+				this.lastTime = Date.now();
+
+				// Update statistics
+				this.stats.numMoves = numMoves;
+				this.stats.lastPlacedCase = lastPlacedCase;
+
+				// Update the board with new state
+				this.updateBoard(boardStateArray);
+
+				if (message.type === 'finished') {
+					this.stopSolver();
+				}
+				break;
+		}
+	}
+
+	/**
+	 * Updates the board based on data received from the solver worker.
+	 */
+	updateBoard(boardState: any) {
+		this.board.updateFromState(boardState);
+	}
+
+	/**
+	 * Starts the solver by sending a message to the worker.
+	 */
+	startSolver() {
+		// Initialize the worker with necessary data
+		this.solverWorker.postMessage({
+			type: 'init',
+			data: {
+				pieceCodes: PieceCodes,
+			},
+		});
+
+		// Start the solver
+		this.solverWorker.postMessage({type: 'solve'});
+	}
+
+	/**
+	 * Stops the solver by sending a message to the worker.
+	 */
+	stopSolver() {
+		this.solverWorker.postMessage({type: 'stop'});
+	}
+
+	/**
 	 * Main animation loop
 	 */
 	animate() {
 		requestAnimationFrame(this.animate);
-
-		if (!this.solver.stop) {
-			for (let i = 0; i < this.iterationPerFrame; i++) {
-				this.solver.solve(this.board);
-			}
-		}
 
 		if (this.requestCameraSwitch) {
 			this.controls.enabled = false;
@@ -403,8 +459,11 @@ export class Game {
 	 */
 	start() {
 		this.init();
-		this.solver.shuffle();
-		this.solver.placeCenterPiece(this.board);
+		this.solverWorker.postMessage({
+			type: 'init', data: {
+				pieceCodes: PieceCodes
+			}
+		});
 		this.animate();
 	}
 }
