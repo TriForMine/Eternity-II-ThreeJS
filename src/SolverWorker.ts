@@ -86,7 +86,7 @@ class SolverWorker {
 					if (!this.edgeIndex[direction].has(color)) {
 						this.edgeIndex[direction].set(color, []);
 					}
-					this.edgeIndex[direction].get(color)!.push(piece);
+					this.edgeIndex[direction].get(color)?.push(piece);
 				}
 			}
 		}
