@@ -277,11 +277,6 @@ export class Game {
 	 * Starts the solver by sending a message to the worker.
 	 */
 	startSolver() {
-		// Initialize the worker with necessary data
-		this.solverWorker.postMessage({
-			type: 'init',
-		});
-
 		// Start the solver
 		this.solverWorker.postMessage({type: 'solve'});
 	}
