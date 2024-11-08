@@ -126,7 +126,6 @@ export class Game {
 	board: Board;
 	stats: Statistics;
 	cameraController: CameraController;
-	checkIntervalID?: number;
 	solverWorker = new SolverWorker();
 	lastTime: number;
 
@@ -194,7 +193,6 @@ export class Game {
 		this.onResize = this.onResize.bind(this);
 		this.onStart = this.onStart.bind(this);
 		this.onStop = this.onStop.bind(this);
-		this.onCheck = this.onCheck.bind(this);
 		this.onSwitchCamera = this.onSwitchCamera.bind(this);
 		this.updateStatsUI = this.updateStatsUI.bind(this);
 
@@ -204,15 +202,11 @@ export class Game {
 		// Button Event Listeners
 		const startButton = document.getElementById('start');
 		const stopButton = document.getElementById('stop');
-		const checkButton = document.getElementById('check');
 		const switchCameraButton = document.getElementById('switchCamera');
 
 		if (startButton) startButton.addEventListener('click', this.onStart);
 		if (stopButton) stopButton.addEventListener('click', this.onStop);
-		if (checkButton) checkButton.addEventListener('click', this.onCheck);
 		if (switchCameraButton) switchCameraButton.addEventListener('click', this.onSwitchCamera);
-
-		this.checkIntervalID = undefined;
 
 		this.solverWorker.onmessage = this.onSolverMessage.bind(this);
 		this.lastTime = Date.now();
@@ -300,21 +294,6 @@ export class Game {
 	}
 
 	/**
-	 * Checks the integrity of the board.
-	 */
-	checkIntegrity() {
-		if (this.checkIntervalID) {
-			clearInterval(this.checkIntervalID);
-			this.checkIntervalID = undefined;
-		} else {
-			this.checkIntervalID = setInterval(() => {
-				this.board.checkIntegrity();
-				this.stats.miniBoard.checkIntegrity();
-			}, 1000);
-		}
-	}
-
-	/**
 	 * Switches the camera view.
 	 */
 	switchCamera() {
@@ -327,15 +306,39 @@ export class Game {
 	onStart() {
 		this.startSolver();
 		this.stats.start();
+
+		// Disable the start button
+		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
+		if (startButton) {
+			startButton.disabled = true;
+			startButton.classList.remove('disabled');
+		}
+
+		// Enable the stop button
+		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
+		if (stopButton) {
+			stopButton.disabled = false;
+			stopButton.classList.add('disabled');
+		}
 	}
 
 	onStop() {
 		this.stopSolver();
 		this.stats.stop();
-	}
 
-	onCheck() {
-		this.checkIntegrity();
+		// Enable the start button
+		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
+		if (startButton) {
+			startButton.disabled = false;
+			startButton.classList.add('disabled');
+		}
+
+		// Disable the stop button
+		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
+		if (stopButton) {
+			stopButton.disabled = true;
+			stopButton.classList.remove('disabled');
+		}
 	}
 
 	onSwitchCamera() {
