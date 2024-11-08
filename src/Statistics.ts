@@ -20,6 +20,7 @@ export class Statistics {
 	miniBoard: Board;
 	lastPlacedCase: number;
 	numMoves: number;
+	totalNumMoves: number;
 
 	// FPS-related properties
 	fps_display: string;
@@ -33,17 +34,18 @@ export class Statistics {
 	constructor(game: Game) {
 		this.game = game;
 		this.clock = new Clock();
-		this.moves_per_sec = "";
-		this.elapsed_time = "";
-		this.number_of_pieces = "";
-		this.best_solution = "";
-		this.fps_display = "";
+		this.moves_per_sec = "0 moves/s";
+		this.elapsed_time = "00:00:00";
+		this.number_of_pieces = "0 /256";
+		this.best_solution = "0 /256";
+		this.fps_display = "0 fps";
 		this.intervalID = undefined;
 		this.movesPerSec = 0;
 		this.bestSolution = 0;
 		this.frameCount = 0;
 		this.fps = 0;
 		this.numMoves = 0;
+		this.totalNumMoves = 0;
 		this.lastPlacedCase = -1;
 
 		// Initialize smoothed moves per second properties
@@ -100,6 +102,9 @@ export class Statistics {
 				}
 			}
 		}
+
+		// Update the total number of moves
+		this.totalNumMoves += this.numMoves
 
 		// Update number of moves per second (current second)
 		this.moves_per_sec = `${Math.floor(this.numMoves)} moves/s`;

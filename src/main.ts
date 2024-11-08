@@ -215,6 +215,13 @@ class GUIController {
 			readonly: true
 		});
 
+		// Total Number of Moves Display
+		statsFolder.addBinding(this.game.stats, 'totalNumMoves', {
+			label: 'Total Number of Moves',
+			format: (value: number) => value.toLocaleString(),
+			readonly: true
+		});
+
 		statsFolder.expanded = true;
 	}
 
