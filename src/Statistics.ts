@@ -1,8 +1,6 @@
 /**
  * @file Statistics.js
- * @author Chahan
- * @author Quentin
- * @description Statistics of the game
+ * @description Statistics of the game with smoothed moves per second calculation
  */
 
 import {Board} from "./Board.ts";
@@ -28,6 +26,10 @@ export class Statistics {
 	private frameCount: number;
 	private fps: number;
 
+	// Properties for smoothed moves per second
+	private movesPerSecSamples: number[]; // Sliding window samples
+	private readonly maxSamples: number; // Maximum number of samples to keep
+
 	constructor(game: Game) {
 		this.game = game;
 		this.clock = new Clock();
@@ -44,8 +46,16 @@ export class Statistics {
 		this.numMoves = 0;
 		this.lastPlacedCase = -1;
 
+		// Initialize smoothed moves per second properties
+		this.movesPerSecSamples = [];
+		this.maxSamples = 5; // e.g., average over last 5 seconds
+
 		// mini board with the best solution found
-		this.miniBoard = new Board(this.game, this.game.scene2, [...this.game.board.placedPieces.filter((piece) => piece !== undefined)]);
+		this.miniBoard = new Board(
+			this.game,
+			this.game.scene2,
+			[...this.game.board.placedPieces.filter((piece) => piece !== undefined)]
+		);
 		this.miniBoard.mesh.scale.set(0.135, 0.135, 0.135);
 	}
 
@@ -53,22 +63,26 @@ export class Statistics {
 	 * Starts the statistics update interval.
 	 */
 	start() {
+		this.clock.start(); // Ensure the clock starts when statistics start
 		this.intervalID = setInterval(() => {
 			this.update();
 		}, 1000);
 	}
 
 	/**
-	 * Should be called every frame to increment the frame count.
+	 * Should be called every frame to increment the frame count and moves.
 	 */
 	incrementFrame() {
 		this.frameCount++;
+		this.numMoves++;
 	}
 
 	/**
 	 * Updates the statistics every second.
 	 */
 	update() {
+		const elapsedTime = this.clock.getElapsedTime(); // Total elapsed time in seconds
+
 		// Update FPS
 		this.fps = this.frameCount;
 		this.fps_display = `${this.fps} fps`;
@@ -80,19 +94,34 @@ export class Statistics {
 			this.miniBoard.clearBoard();
 			const clone_of_pieces = this.game.board.clone();
 			for (let i = 0; i < this.bestSolution; i++) {
-				//-.9, .04, 0.1
 				const piece = clone_of_pieces[i];
 				if (piece !== undefined && piece !== null) {
 					this.miniBoard.addPieceToSpot([piece.rotation, piece], i);
 				}
 			}
 		}
+
+		// Update number of moves per second (current second)
 		this.moves_per_sec = `${Math.floor(this.numMoves)} moves/s`;
 		this.movesPerSec = Math.floor(this.numMoves);
-		this.elapsed_time = this.formatHour(this.clock.getElapsedTime());
+		this.elapsed_time = this.formatHour(elapsedTime);
 		this.number_of_pieces = `${this.lastPlacedCase + 1} /256`;
-		this.numMoves = 0;
 		this.best_solution = `${this.miniBoard.length()} /256`;
+
+		// Manage the sliding window for moves per second
+		this.movesPerSecSamples.push(this.numMoves);
+		if (this.movesPerSecSamples.length > this.maxSamples) {
+			this.movesPerSecSamples.shift(); // Remove the oldest sample
+		}
+
+		// Calculate the average moves per second from the samples
+		const sumMoves = this.movesPerSecSamples.reduce((acc, curr) => acc + curr, 0);
+		const averageMoves = sumMoves / this.movesPerSecSamples.length;
+		this.moves_per_sec = `${averageMoves.toFixed(0)} moves/s`;
+		this.movesPerSec = Math.floor(averageMoves);
+
+		// Reset numMoves for the next second
+		this.numMoves = 0;
 	}
 
 	/**
@@ -128,5 +157,6 @@ export class Statistics {
 	stop() {
 		clearInterval(this.intervalID);
 		this.intervalID = undefined;
+		this.clock.stop(); // Stop the clock when statistics stop
 	}
 }

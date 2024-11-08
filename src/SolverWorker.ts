@@ -1,19 +1,21 @@
 // solverWorker.ts
 /// <reference lib="webworker" />
 
-import {Piece} from './Piece';
+import {type Direction, Piece} from './Piece';
 import {PieceCodes} from './ListPiece'; // Import the known piece codes
 import type {PieceCode} from './ListPiece';
-import {match} from "./Utils.ts";
 
-export type SolverMessage = {
+export type SolverMessage =
+	| {
 	type: 'init';
 	data: {
 		pieceCodes: PieceCode[];
 	};
-} | {
+}
+	| {
 	type: 'solve';
-} | {
+}
+	| {
 	type: 'stop';
 };
 
@@ -27,7 +29,7 @@ export interface SolverResponse {
 }
 
 class SolverWorker {
-	piecesDict: Piece[];
+	piecesMap: Map<string, Piece>; // Map of piece name to Piece
 	stop: boolean;
 	numMoves: number;
 	lastPlacedCase: number;
@@ -37,24 +39,34 @@ class SolverWorker {
 	updateIntervalMs: number;
 	lastUpdateTime: number;
 
+	// Index maps for quick lookup based on edge colors
+	edgeIndex: Record<Direction, Map<string, Piece[]>> = {
+		top: new Map(),
+		right: new Map(),
+		bottom: new Map(),
+		left: new Map(),
+	};
+
 	constructor() {
-		this.piecesDict = [];
+		this.piecesMap = new Map();
 		this.stop = false;
 		this.numMoves = 0;
 		this.lastPlacedCase = -1;
 		this.maxNumCase = 0;
 		this.stack = [];
-		this.placedPieces = Array(256).fill(undefined);
+		this.placedPieces = new Array(256).fill(undefined);
 		this.updateIntervalMs = 1000; // Send updates every 1000 milliseconds
 		this.lastUpdateTime = performance.now();
 	}
 
 	/**
-	 * Initializes the pieces dictionary with the provided piece codes.
+	 * Initializes the pieces map with the provided piece codes and builds edge indices.
 	 */
 	initDict(piecesDesc: PieceCode[]) {
 		for (const pieceCode of piecesDesc) {
-			this.piecesDict.push(new Piece(pieceCode));
+			const piece = new Piece(pieceCode);
+			this.piecesMap.set(piece.name, piece);
+			this.indexPiece(piece);
 		}
 		this.shuffle();
 		this.initStack();
@@ -62,13 +74,34 @@ class SolverWorker {
 	}
 
 	/**
-	 * Shuffles the pieces dictionary.
+	 * Indexes a piece's connectors for quick lookup based on edge colors.
+	 *
+	 * @param piece - The Piece to index.
+	 */
+	indexPiece(piece: Piece) {
+		for (const rotation of piece.precomputedRotations) {
+			for (const direction of ['top', 'right', 'bottom', 'left'] as Direction[]) {
+				const color = rotation.connectors[direction].color;
+				if (color !== '*') { // Only index pieces with actual connectors
+					if (!this.edgeIndex[direction].has(color)) {
+						this.edgeIndex[direction].set(color, []);
+					}
+					this.edgeIndex[direction].get(color)!.push(piece);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Shuffles the pieces using Fisher-Yates algorithm.
 	 */
 	shuffle() {
-		for (let i = this.piecesDict.length - 1; i > 0; i--) {
+		const piecesArray = Array.from(this.piecesMap.values());
+		for (let i = piecesArray.length - 1; i > 0; i--) {
 			const j = Math.floor(Math.random() * (i + 1));
-			[this.piecesDict[i], this.piecesDict[j]] = [this.piecesDict[j], this.piecesDict[i]];
+			[piecesArray[i], piecesArray[j]] = [piecesArray[j], piecesArray[i]];
 		}
+		this.piecesMap = new Map(piecesArray.map(piece => [piece.name, piece]));
 	}
 
 	/**
@@ -91,10 +124,13 @@ class SolverWorker {
 	 * Places the center piece.
 	 */
 	placeCenterPiece() {
-		const centerPiece = this.piecesDict.find((piece) => piece.name === 'FKRF');
+		const centerPiece = Array.from(this.piecesMap.values()).find(piece => piece.name === 'FKRF');
 		if (centerPiece) {
-			this.removeFromDict(centerPiece.name);
-			this.addPieceToSpot([2, centerPiece], 135);
+			centerPiece.rotation = 2;
+			this.piecesMap.delete(centerPiece.name);
+			this.placedPieces[135] = centerPiece;
+			this.lastPlacedCase = 135;
+			this.removePieceFromEdgeIndex(centerPiece);
 		}
 	}
 
@@ -117,7 +153,7 @@ class SolverWorker {
 		}
 
 		const startTime = performance.now();
-		const timeSlice = 50; // milliseconds
+		const timeSlice = 200; // milliseconds
 
 		while (performance.now() - startTime < timeSlice) {
 			if (this.stop || this.stack.length === 0) {
@@ -161,18 +197,20 @@ class SolverWorker {
 			if (caseToRemove !== 135) {
 				const removedPiece = this.removePieceFromSpot(caseToRemove);
 				if (removedPiece) {
-					this.addToDict(removedPiece);
+					this.piecesMap.set(removedPiece.name, removedPiece);
+					this.indexPiece(removedPiece); // Re-index the piece
 				}
 			}
 		}
 
 		this.lastPlacedCase = spot;
 
-		if (spot !== 135) {
+		if (spot !== 135) { // Skip the center piece
 			if (piece) {
 				// Place the piece
-				this.addPieceToSpot([rotation, piece], spot);
-				this.removeFromDict(piece.name);
+				this.addPieceToSpot(piece, rotation, spot);
+				this.piecesMap.delete(piece.name);
+				this.removePieceFromEdgeIndex(piece);
 			}
 		}
 
@@ -188,18 +226,22 @@ class SolverWorker {
 		// Determine next spot
 		const nextSpot = spot + 1;
 
-		const listOfAvailableMoves = this.findMatchingPieces(this.getConstraints(nextSpot));
+		const constraints = this.getConstraints(nextSpot);
+		const listOfAvailableMoves = this.findMatchingPieces(constraints);
 		// If no available moves, backtracking will occur on the next loop iteration
-		for (const [nextRotation, nextPiece] of listOfAvailableMoves) {
-			this.stack.push({piece: nextPiece, rotation: nextRotation, spot: nextSpot});
+		for (const [nextPiece, rotation] of listOfAvailableMoves) {
+			this.stack.push({piece: nextPiece, rotation: rotation, spot: nextSpot});
 		}
 	}
 
 	/**
-	 * Adds a piece to a specific spot.
+	 * Adds a piece to a specific spot with the given rotation.
+	 *
+	 * @param piece - The Piece to place.
+	 * @param rotation - The rotation index (0-3).
+	 * @param spot - The spot index on the board.
 	 */
-	addPieceToSpot(tupleRotationPiece: [number, Piece], spot: number) {
-		const [rotation, piece] = tupleRotationPiece;
+	addPieceToSpot(piece: Piece, rotation: number, spot: number) {
 		piece.rotation = rotation;
 		this.placedPieces[spot] = piece;
 		this.lastPlacedCase = spot;
@@ -210,6 +252,9 @@ class SolverWorker {
 
 	/**
 	 * Removes a piece from a specific spot.
+	 *
+	 * @param spot - The spot index to remove the piece from.
+	 * @returns The removed Piece, if any.
 	 */
 	removePieceFromSpot(spot: number): Piece | undefined {
 		const piece = this.placedPieces[spot];
@@ -218,76 +263,177 @@ class SolverWorker {
 	}
 
 	/**
-	 * Finds pieces that match the constraints.
+	 * Removes a piece from the edge index after placement.
+	 *
+	 * @param piece - The Piece to remove from the edge index.
 	 */
-	findMatchingPieces(constraints: string): [number, Piece][] {
-		const listOfMatchingPieces: [number, Piece][] = [];
-		for (const piece of this.piecesDict) {
-			const m = match(piece.name, constraints);
-			if (m !== -1) {
-				listOfMatchingPieces.push([m, piece]);
+	removePieceFromEdgeIndex(piece: Piece) {
+		for (const rotation of piece.precomputedRotations) {
+			for (const direction of ['top', 'right', 'bottom', 'left'] as Direction[]) {
+				const color = rotation.connectors[direction].color;
+				if (color !== '*') {
+					const piecesArray = this.edgeIndex[direction].get(color);
+					if (piecesArray) {
+						const index = piecesArray.indexOf(piece);
+						if (index !== -1) {
+							piecesArray.splice(index, 1);
+							if (piecesArray.length === 0) {
+								this.edgeIndex[direction].delete(color);
+							}
+						}
+					}
+				}
 			}
 		}
-		return listOfMatchingPieces;
+	}
+
+	/**
+	 * Finds pieces that match the constraints based on adjacent connectors.
+	 *
+	 * @param constraints - The required connectors for the spot.
+	 * @returns An array of tuples containing the matching Piece and its rotation.
+	 */
+	findMatchingPieces(constraints: Record<Direction, string>): [Piece, number][] {
+		// Determine the required connectors based on adjacent pieces
+		// For example, if the top neighbor has a bottom connector 'R',
+		// then the current piece's top connector must be 'R'
+
+		// Collect the required connector colors for each direction
+		const requiredConnectors: Partial<Record<Direction, string>> = {};
+
+		if (constraints.top !== '*') {
+			requiredConnectors.top = constraints.top;
+		}
+		if (constraints.right !== '*') {
+			requiredConnectors.right = constraints.right;
+		}
+		if (constraints.bottom !== '*') {
+			requiredConnectors.bottom = constraints.bottom;
+		}
+		if (constraints.left !== '*') {
+			requiredConnectors.left = constraints.left;
+		}
+
+		// Find intersection of pieces matching all required connectors
+		let possiblePieces: Set<Piece> | null = null;
+
+		for (const [direction, color] of Object.entries(requiredConnectors) as [Direction, string][]) {
+			const piecesWithConnector = this.edgeIndex[direction].get(color);
+			if (!piecesWithConnector) {
+				// No pieces match this connector
+				return [];
+			}
+			const piecesSet = new Set(piecesWithConnector);
+			if (possiblePieces === null) {
+				possiblePieces = piecesSet;
+			} else {
+				// Intersection with existing possiblePieces
+				possiblePieces = new Set([...possiblePieces].filter((piece: Piece) => piecesSet.has(piece)));
+				if (possiblePieces.size === 0) {
+					return [];
+				}
+			}
+		}
+
+		if (!possiblePieces) {
+			// No constraints, all pieces are possible
+			possiblePieces = new Set(this.piecesMap.values());
+		}
+
+		// For each possible piece, check all rotations to see if they satisfy all constraints
+		const matchingPieces: [Piece, number][] = [];
+
+		for (const piece of possiblePieces) {
+			for (const rotation of piece.precomputedRotations) {
+				let matches = true;
+				for (const direction of ['top', 'right', 'bottom', 'left'] as Direction[]) {
+					const requiredColor = requiredConnectors[direction];
+					if (requiredColor) {
+						const pieceColor = rotation.connectors[direction].color;
+						if (pieceColor !== requiredColor) {
+							matches = false;
+							break;
+						}
+					}
+				}
+				if (matches) {
+					matchingPieces.push([piece, rotation.rotation]);
+				}
+			}
+		}
+
+		return matchingPieces;
 	}
 
 	/**
 	 * Removes a piece from the dictionary.
 	 */
-	removeFromDict(name: PieceCode) {
-		const index = this.piecesDict.findIndex((piece) => piece.name === name);
-		if (index !== -1) {
-			this.piecesDict.splice(index, 1);
-		}
+	removeFromDict(name: string) {
+		this.piecesMap.delete(name);
 	}
 
 	/**
-	 * Adds a piece back to the dictionary.
+	 * Adds a piece back to the dictionary and re-indexes it.
 	 */
 	addToDict(piece: Piece) {
-		this.piecesDict.push(piece);
+		this.piecesMap.set(piece.name, piece);
+		this.indexPiece(piece);
 	}
 
 	/**
-	 * Gets constraints for a spot.
+	 * Gets constraints for a spot based on adjacent pieces.
+	 *
+	 * @param spot - The spot index on the board.
+	 * @returns A record mapping each direction to the required connector color.
 	 */
-	getConstraints(spot: number): string {
-		const constraints = {
-			top: '*',
-			right: '*',
-			bottom: '*',
-			left: '*',
+	getConstraints(spot: number): Record<Direction, string> {
+		const constraints: Record<Direction, string> = {
+			top: 'X',
+			right: 'X',
+			bottom: 'X',
+			left: 'X',
 		};
 
 		const col = spot % 16;
 		const row = Math.floor(spot / 16);
 
-		constraints.left = col === 0 ? 'X' : this.getEdges(spot - 1, 'right');
-		constraints.top = row === 0 ? 'X' : this.getEdges(spot - 16, 'bottom');
-		constraints.right = col === 15 ? 'X' : this.getEdges(spot + 1, 'left');
-		constraints.bottom = row === 15 ? 'X' : this.getEdges(spot + 16, 'top');
-
-		return constraints.top + constraints.right + constraints.bottom + constraints.left;
-	}
-
-	/**
-	 * Gets edges for a spot.
-	 */
-	getEdges(spot: number, edge: string): string {
-		const piece = this.placedPieces[spot];
-		if (piece) {
-			switch (edge) {
-				case 'top':
-					return piece.rotatedName[0];
-				case 'right':
-					return piece.rotatedName[1];
-				case 'bottom':
-					return piece.rotatedName[2];
-				case 'left':
-					return piece.rotatedName[3];
+		if (row > 0) { // There is a top neighbor
+			const topNeighbor = this.placedPieces[spot - 16];
+			if (topNeighbor) {
+				constraints.top = topNeighbor.getEdgeColor('bottom');
+			} else {
+				constraints.top = '*';
 			}
 		}
-		return '*';
+
+		if (col < 15) { // There is a right neighbor
+			const rightNeighbor = this.placedPieces[spot + 1];
+			if (rightNeighbor) {
+				constraints.right = rightNeighbor.getEdgeColor('left');
+			} else {
+				constraints.right = '*';
+			}
+		}
+
+		if (row < 15) { // There is a bottom neighbor
+			const bottomNeighbor = this.placedPieces[spot + 16];
+			if (bottomNeighbor) {
+				constraints.bottom = bottomNeighbor.getEdgeColor('top');
+			} else {
+				constraints.bottom = '*';
+			}
+		}
+
+		if (col > 0) { // There is a left neighbor
+			const leftNeighbor = this.placedPieces[spot - 1];
+			if (leftNeighbor) {
+				constraints.left = leftNeighbor.getEdgeColor('right');
+			} else {
+				constraints.left = '*';
+			}
+		}
+
+		return constraints;
 	}
 
 	/**
@@ -308,8 +454,8 @@ class SolverWorker {
 
 		for (const {spot, piece} of placedPieces) {
 			const pieceIndex = PieceCodes.indexOf(piece.name); // Use index from the PieceCodes array
-			dataArray[index++] = spot;           // Spot index
-			dataArray[index++] = pieceIndex;     // Piece index
+			dataArray[index++] = spot; // Spot index
+			dataArray[index++] = pieceIndex; // Piece index
 			dataArray[index++] = piece.rotation; // Rotation (0-3)
 		}
 
@@ -324,6 +470,7 @@ class SolverWorker {
 	}
 }
 
+// Instantiate the solver
 const solver = new SolverWorker();
 
 // Listen for messages from the main thread

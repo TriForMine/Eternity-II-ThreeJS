@@ -1,14 +1,43 @@
 /**
  * @file Piece.ts
- * @author Chahan
- * @author Quentin
- * @description Piece class for the game
+ * @description Piece class with precomputed rotations and color-based edge constraints.
  */
-import {BoxGeometry, Mesh, MeshBasicMaterial, TextureLoader, type Scene} from 'three';
+
+import {
+	BoxGeometry,
+	Mesh,
+	MeshBasicMaterial,
+	TextureLoader,
+	type Scene,
+} from 'three';
 import type {PieceCode} from "./ListPiece.ts";
 import {rotateString} from "./Utils.ts";
 import TextureManager from "./TextureManager.ts";
 
+/**
+ * Directions for edges.
+ */
+export type Direction = 'top' | 'right' | 'bottom' | 'left';
+
+/**
+ * Interface for edge connectors.
+ */
+interface Connector {
+	color: string; // Represents the color or type of the connector
+}
+
+/**
+ * Interface for precomputed rotation data.
+ */
+export interface PrecomputedRotation {
+	rotation: number; // Rotation index (0-3)
+	rotatedName: PieceCode; // Rotated piece name
+	connectors: Record<Direction, Connector>; // Connectors for each direction
+}
+
+/**
+ * Piece class representing a game piece with multiple rotations and color-based connectors.
+ */
 export class Piece {
 	name: PieceCode;
 	mesh?: Mesh;
@@ -21,15 +50,29 @@ export class Piece {
 	outlineMaterial?: MeshBasicMaterial;
 	outlineMesh?: Mesh;
 
+	// Array holding all precomputed rotations
+	precomputedRotations: PrecomputedRotation[] = [];
+
+	/**
+	 * Getter for the currently rotated name based on the current rotation.
+	 */
 	get rotatedName(): PieceCode {
 		return rotateString(this.name, this.rotation);
 	}
 
-	constructor(name: PieceCode, mesh?: Mesh, rotation = 0, scale: number = 5 / 16.7) {
+	constructor(
+		name: PieceCode,
+		mesh?: Mesh,
+		rotation = 0,
+		scale: number = 5 / 16.7
+	) {
 		this.name = name;
 		this.scale = scale;
 		this.rotation = rotation;
 		this.isClone = false;
+
+		// Precompute all rotations upon initialization
+		this.precomputeRotations();
 
 		if (typeof document !== 'undefined') {
 			if (mesh) {
@@ -43,6 +86,61 @@ export class Piece {
 				this.mesh = new Mesh(this.geometry, this.material);
 			}
 		}
+	}
+
+	/**
+	 * Precomputes all possible rotations for the piece and stores the connectors for each direction.
+	 */
+	precomputeRotations() {
+		for (let rot = 0; rot < 4; rot++) {
+			const rotatedName = rotateString(this.name, rot);
+			const connectors = this.parseConnectors(rotatedName);
+			this.precomputedRotations.push({
+				rotation: rot,
+				rotatedName: rotatedName,
+				connectors: connectors,
+			});
+		}
+	}
+
+	/**
+	 * Parses the rotated name to extract connector colors for each direction.
+	 * Assumes that the rotatedName string has connectors in the order: top, right, bottom, left.
+	 * Each connector character represents a color or type (e.g., 'R' for red, 'G' for green).
+	 * 'X' represents no connector.
+	 *
+	 * @param rotatedName - The name of the piece after rotation.
+	 * @returns A record mapping each direction to its connector.
+	 */
+	parseConnectors(rotatedName: PieceCode): Record<Direction, Connector> {
+		const connectors: Record<Direction, Connector> = {
+			top: {color: '*'},
+			right: {color: '*'},
+			bottom: {color: '*'},
+			left: {color: '*'},
+		};
+
+		const connectorChars = rotatedName.split(''); // e.g., ['A', 'Q', 'X', 'X']
+
+		const directions: Direction[] = ['top', 'right', 'bottom', 'left'];
+
+		connectorChars.forEach((char, index) => {
+			const direction = directions[index];
+			connectors[direction].color = char;
+		});
+
+		return connectors;
+	}
+
+	/**
+	 * Retrieves the connector color for a specific direction based on the current rotation.
+	 *
+	 * @param direction - The direction to retrieve ('top', 'right', 'bottom', 'left').
+	 * @returns The color of the connector, or 'X' if there is no connector.
+	 */
+	getEdgeColor(direction: Direction): string {
+		const currentRotation = this.precomputedRotations[this.rotation];
+		return currentRotation.connectors[direction].color;
 	}
 
 	/**

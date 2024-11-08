@@ -131,7 +131,6 @@ class GUIController {
 	 */
 	setupFolders() {
 		this.setupCommandFolder();
-		this.setupSpeedFolder();
 		this.setupStatsFolder();
 		this.setupMiniBoardFolder();
 	}
@@ -183,17 +182,6 @@ class GUIController {
 		});
 
 		commandFolder.expanded = true; // Open the folder by default
-	}
-
-	/**
-	 * Sets up the speed folder in the GUI
-	 */
-	setupSpeedFolder() {
-		const speedFolder = this.pane.addFolder({
-			title: 'Speed'
-		});
-
-		speedFolder.expanded = true;
 	}
 
 	/**
@@ -400,10 +388,7 @@ export class Game {
 	startSolver() {
 		// Initialize the worker with necessary data
 		this.solverWorker.postMessage({
-			type: 'init',
-			data: {
-				pieceCodes: PieceCodes,
-			},
+			type: 'init'
 		});
 
 		// Start the solver
