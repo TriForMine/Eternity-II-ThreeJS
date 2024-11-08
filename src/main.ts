@@ -1,8 +1,6 @@
 /**
  * @file main.ts
- * @author Chahan
- * @author Quentin
- * @description Main file for the game
+ * @description Main file for Eternity-II Backtracking Visualization
  */
 
 import {
@@ -13,7 +11,6 @@ import {
 	WebGLRenderer
 } from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {Pane} from 'tweakpane'
 
 import {PieceCodes} from './ListPiece.ts';
 import type {SolverResponse} from './SolverWorker.ts'
@@ -116,133 +113,6 @@ class CameraController {
 	}
 }
 
-class GUIController {
-	game: Game;
-	pane: Pane;
-
-	constructor(game: Game) {
-		this.game = game;
-		this.pane = new Pane(); // Initialize tweakpane
-		this.setupFolders();
-	}
-
-	/**
-	 * Sets up the GUI folders
-	 */
-	setupFolders() {
-		this.setupCommandFolder();
-		this.setupStatsFolder();
-		this.setupMiniBoardFolder();
-	}
-
-	/**
-	 * Sets up the command folder in the GUI
-	 */
-	setupCommandFolder() {
-		const commandFolder = this.pane.addFolder({
-			title: 'Controls'
-		});
-
-		// RunSolver Button
-		commandFolder.addButton({
-			title: 'Run Solver'
-		}).on('click', () => {
-			this.game.solverWorker.postMessage({type: 'solve'});
-			this.game.stats.start();
-		});
-
-		// StopSolver Button
-		commandFolder.addButton({
-			title: 'Stop Solver'
-		}).on('click', () => {
-			this.game.solverWorker.postMessage({type: 'stop'});
-			this.game.stats.stop();
-		});
-
-		// Check Button
-		commandFolder.addButton({
-			title: 'Check'
-		}).on('click', () => {
-			if (this.game.checkIntervalID) {
-				clearInterval(this.game.checkIntervalID);
-				this.game.checkIntervalID = undefined;
-			} else {
-				this.game.checkIntervalID = setInterval(() => {
-					this.game.board.checkIntegrity();
-					this.game.stats.miniBoard.checkIntegrity();
-				}, 1000);
-			}
-		});
-
-		// SwitchCamera Button
-		commandFolder.addButton({
-			title: 'Switch Camera'
-		}).on('click', () => {
-			this.game.cameraController.switchCamera();
-		});
-
-		commandFolder.expanded = true; // Open the folder by default
-	}
-
-	/**
-	 * Sets up the stats folder in the GUI
-	 */
-	setupStatsFolder() {
-		const statsFolder = this.pane.addFolder({
-			title: 'Stats'
-		});
-
-		// Moves Per Second Display
-		statsFolder.addBinding(this.game.stats, 'moves_per_sec', {
-			label: 'Moves Per Second',
-			readonly: true
-		});
-
-		statsFolder.addBinding(this.game.stats, 'fps_display', {
-			label: 'FPS',
-			readonly: true
-		})
-
-		// Elapsed Time Display
-		statsFolder.addBinding(this.game.stats, 'elapsed_time', {
-			label: 'Elapsed Time',
-			readonly: true
-		});
-
-		// Number of Pieces Display
-		statsFolder.addBinding(this.game.stats, 'number_of_pieces', {
-			label: 'Number of Pieces',
-			readonly: true
-		});
-
-		// Total Number of Moves Display
-		statsFolder.addBinding(this.game.stats, 'totalNumMoves', {
-			label: 'Total Number of Moves',
-			format: (value: number) => value.toLocaleString(),
-			readonly: true
-		});
-
-		statsFolder.expanded = true;
-	}
-
-	/**
-	 * Sets up the mini board folder in the GUI
-	 */
-	setupMiniBoardFolder() {
-		const miniBoardFolder = this.pane.addFolder({
-			title: 'Best Solution'
-		});
-
-		// Best Solution Display
-		miniBoardFolder.addBinding(this.game.stats, 'best_solution', {
-			label: 'Best Solution',
-			readonly: true
-		});
-
-		miniBoardFolder.expanded = true;
-	}
-}
-
 export class Game {
 	requestCameraSwitch: boolean;
 	scene1: Scene;
@@ -255,7 +125,6 @@ export class Game {
 	controls2: OrbitControls;
 	board: Board;
 	stats: Statistics;
-	guiController: GUIController;
 	cameraController: CameraController;
 	checkIntervalID?: number;
 	solverWorker = new SolverWorker();
@@ -271,7 +140,13 @@ export class Game {
 		this.scene2 = new Scene();
 		this.scene2.name = "scene2";
 
-		this.renderer = new WebGLRenderer();
+		const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+
+		this.renderer = new WebGLRenderer({
+			canvas: canvas,
+			antialias: true
+		});
+
 		this.renderer.setSize(window.innerWidth, window.innerHeight);
 		this.renderer.autoClear = false;
 
@@ -311,24 +186,39 @@ export class Game {
 		// Initialize statistics
 		this.stats = new Statistics(this);
 
-		// GUI and Camera Controller
-		this.guiController = new GUIController(this);
+		// Camera Controller
 		this.cameraController = new CameraController(this);
 
 		// Bind methods
 		this.animate = this.animate.bind(this);
 		this.onResize = this.onResize.bind(this);
+		this.onStart = this.onStart.bind(this);
+		this.onStop = this.onStop.bind(this);
+		this.onCheck = this.onCheck.bind(this);
+		this.onSwitchCamera = this.onSwitchCamera.bind(this);
+		this.updateStatsUI = this.updateStatsUI.bind(this);
 
 		// Setup event listeners
 		window.addEventListener('resize', this.onResize, false);
 
-		// Append renderer to the document
-		document.body.appendChild(this.renderer.domElement);
+		// Button Event Listeners
+		const startButton = document.getElementById('start');
+		const stopButton = document.getElementById('stop');
+		const checkButton = document.getElementById('check');
+		const switchCameraButton = document.getElementById('switchCamera');
+
+		if (startButton) startButton.addEventListener('click', this.onStart);
+		if (stopButton) stopButton.addEventListener('click', this.onStop);
+		if (checkButton) checkButton.addEventListener('click', this.onCheck);
+		if (switchCameraButton) switchCameraButton.addEventListener('click', this.onSwitchCamera);
 
 		this.checkIntervalID = undefined;
 
 		this.solverWorker.onmessage = this.onSolverMessage.bind(this);
-		this.lastTime = Date.now()
+		this.lastTime = Date.now();
+
+		// Update stats UI periodically
+		setInterval(this.updateStatsUI, 1000 / 60); // 60 FPS
 	}
 
 	/**
@@ -349,7 +239,7 @@ export class Game {
 				const {boardState, numMoves, lastPlacedCase} = message.data;
 				const dataArray = new Uint8Array(boardState);
 				const numPieces = dataArray.length / 3;
-				const boardStateArray = [];
+				const boardStateArray: BoardState = [];
 
 				for (let i = 0; i < numPieces; i++) {
 					const index = i * 3;
@@ -395,7 +285,7 @@ export class Game {
 	startSolver() {
 		// Initialize the worker with necessary data
 		this.solverWorker.postMessage({
-			type: 'init'
+			type: 'init',
 		});
 
 		// Start the solver
@@ -407,6 +297,68 @@ export class Game {
 	 */
 	stopSolver() {
 		this.solverWorker.postMessage({type: 'stop'});
+	}
+
+	/**
+	 * Checks the integrity of the board.
+	 */
+	checkIntegrity() {
+		if (this.checkIntervalID) {
+			clearInterval(this.checkIntervalID);
+			this.checkIntervalID = undefined;
+		} else {
+			this.checkIntervalID = setInterval(() => {
+				this.board.checkIntegrity();
+				this.stats.miniBoard.checkIntegrity();
+			}, 1000);
+		}
+	}
+
+	/**
+	 * Switches the camera view.
+	 */
+	switchCamera() {
+		this.cameraController.switchCamera();
+	}
+
+	/**
+	 * Button Handlers
+	 */
+	onStart() {
+		this.startSolver();
+		this.stats.start();
+	}
+
+	onStop() {
+		this.stopSolver();
+		this.stats.stop();
+	}
+
+	onCheck() {
+		this.checkIntegrity();
+	}
+
+	onSwitchCamera() {
+		this.switchCamera();
+	}
+
+	/**
+	 * Updates the statistics in the UI.
+	 */
+	updateStatsUI() {
+		const movesPerSecondElem = document.getElementById('movesPerSecond');
+		const fpsElem = document.getElementById('fps');
+		const elapsedTimeElem = document.getElementById('elapsedTime');
+		const numberOfPiecesElem = document.getElementById('numberOfPieces');
+		const totalMovesElem = document.getElementById('totalMoves');
+		const bestSolutionElem = document.getElementById('bestSolution');
+
+		if (movesPerSecondElem) movesPerSecondElem.textContent = this.stats.moves_per_sec;
+		if (fpsElem) fpsElem.textContent = this.stats.fps_display;
+		if (elapsedTimeElem) elapsedTimeElem.textContent = this.stats.elapsed_time;
+		if (numberOfPiecesElem) numberOfPiecesElem.textContent = this.stats.number_of_pieces.toString();
+		if (totalMovesElem) totalMovesElem.textContent = this.stats.totalNumMoves.toLocaleString();
+		if (bestSolutionElem) bestSolutionElem.textContent = this.stats.best_solution || 'N/A';
 	}
 
 	/**

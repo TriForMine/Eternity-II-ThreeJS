@@ -34,7 +34,7 @@ export class Statistics {
 	constructor(game: Game) {
 		this.game = game;
 		this.clock = new Clock();
-		this.moves_per_sec = "0 moves/s";
+		this.moves_per_sec = "0";
 		this.elapsed_time = "00:00:00";
 		this.number_of_pieces = "0 /256";
 		this.best_solution = "0 /256";
@@ -107,7 +107,7 @@ export class Statistics {
 		this.totalNumMoves += this.numMoves
 
 		// Update number of moves per second (current second)
-		this.moves_per_sec = `${Math.floor(this.numMoves)} moves/s`;
+		this.moves_per_sec = `${Math.floor(this.numMoves)}`;
 		this.movesPerSec = Math.floor(this.numMoves);
 		this.elapsed_time = this.formatHour(elapsedTime);
 		this.number_of_pieces = `${this.lastPlacedCase + 1} /256`;
@@ -122,7 +122,7 @@ export class Statistics {
 		// Calculate the average moves per second from the samples
 		const sumMoves = this.movesPerSecSamples.reduce((acc, curr) => acc + curr, 0);
 		const averageMoves = sumMoves / this.movesPerSecSamples.length;
-		this.moves_per_sec = `${averageMoves.toFixed(0)} moves/s`;
+		this.moves_per_sec = `${averageMoves.toFixed(0)}`;
 		this.movesPerSec = Math.floor(averageMoves);
 
 		// Reset numMoves for the next second

@@ -366,21 +366,6 @@ class SolverWorker {
 	}
 
 	/**
-	 * Removes a piece from the dictionary.
-	 */
-	removeFromDict(name: string) {
-		this.piecesMap.delete(name);
-	}
-
-	/**
-	 * Adds a piece back to the dictionary and re-indexes it.
-	 */
-	addToDict(piece: Piece) {
-		this.piecesMap.set(piece.name, piece);
-		this.indexPiece(piece);
-	}
-
-	/**
 	 * Gets constraints for a spot based on adjacent pieces.
 	 *
 	 * @param spot - The spot index on the board.
