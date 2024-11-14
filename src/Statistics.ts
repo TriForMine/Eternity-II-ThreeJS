@@ -76,7 +76,6 @@ export class Statistics {
 	 */
 	incrementFrame() {
 		this.frameCount++;
-		this.numMoves++;
 	}
 
 	/**
@@ -106,9 +105,7 @@ export class Statistics {
 		// Update the total number of moves
 		this.totalNumMoves += this.numMoves
 
-		// Update number of moves per second (current second)
-		this.moves_per_sec = `${Math.floor(this.numMoves)}`;
-		this.movesPerSec = Math.floor(this.numMoves);
+		// Update the statistics
 		this.elapsed_time = this.formatHour(elapsedTime);
 		this.number_of_pieces = `${this.lastPlacedCase + 1} /256`;
 		this.best_solution = `${this.miniBoard.length()} /256`;

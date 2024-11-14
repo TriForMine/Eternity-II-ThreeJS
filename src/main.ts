@@ -252,7 +252,7 @@ export class Game {
 				this.lastTime = Date.now();
 
 				// Update statistics
-				this.stats.numMoves = numMoves;
+				this.stats.numMoves += numMoves;
 				this.stats.lastPlacedCase = lastPlacedCase;
 
 				// Update the board with new state
@@ -413,8 +413,32 @@ export class Game {
 	}
 }
 
-TextureManager.getInstance().loadTextures(PieceCodes);
-
-// Initialize and start the game
 const game = new Game();
-game.start();
+
+document.addEventListener('DOMContentLoaded', () => {
+	// Toggle Controls Visibility on Mobile
+	const toggleButton = document.getElementById('toggleControls');
+	const controls = document.getElementById('controls');
+	const hideControlsButton = document.getElementById('hideControls');
+
+	if (toggleButton && controls && hideControlsButton) {
+		toggleButton.addEventListener('click', () => {
+			controls.classList.toggle('hidden');
+		});
+
+		hideControlsButton.addEventListener('click', () => {
+			controls.classList.add('hidden');
+		});
+	}
+
+	TextureManager.getInstance().loadTextures(PieceCodes);
+	game.start();
+})
+
+window.addEventListener('beforeunload', () => {
+	// Stop the solver worker
+	game.stopSolver();
+
+	// Close the worker
+	game.solverWorker.terminate();
+})

@@ -38,6 +38,7 @@ class SolverWorker {
 	placedPieces: (Piece | undefined)[];
 	updateIntervalMs: number;
 	lastUpdateTime: number;
+	nextBatchTimeout?: number;
 
 	// Index maps for quick lookup based on edge colors
 	edgeIndex: Record<Direction, Map<string, Piece[]>> = {
@@ -55,7 +56,7 @@ class SolverWorker {
 		this.maxNumCase = 0;
 		this.stack = [];
 		this.placedPieces = new Array(256).fill(undefined);
-		this.updateIntervalMs = 1000; // Send updates every 1000 milliseconds
+		this.updateIntervalMs = 500; // Send updates every 500 milliseconds
 		this.lastUpdateTime = performance.now();
 	}
 
@@ -178,9 +179,11 @@ class SolverWorker {
 		}
 
 		// Schedule the next batch
-		setTimeout(() => {
-			this.solveNextBatch();
-		}, 0);
+		if (!this.stop) {
+			this.nextBatchTimeout = setTimeout(() => {
+				this.solveNextBatch();
+			}, 0);
+		}
 	}
 
 	/**
@@ -452,6 +455,11 @@ class SolverWorker {
 	 */
 	stopSolver() {
 		this.stop = true;
+
+		// Clear the next batch timeout
+		if (this.nextBatchTimeout) {
+			clearTimeout(this.nextBatchTimeout);
+		}
 	}
 }
 
