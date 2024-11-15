@@ -16,7 +16,9 @@ export type SolverMessage =
 	type: 'solve';
 }
 	| {
-	type: 'stop';
+	type: 'pause';
+} | {
+	type: 'reset';
 };
 
 export interface SolverResponse {
@@ -50,7 +52,7 @@ class SolverWorker {
 
 	constructor() {
 		this.piecesMap = new Map();
-		this.stop = false;
+		this.stop = true;
 		this.numMoves = 0;
 		this.lastPlacedCase = -1;
 		this.maxNumCase = 0;
@@ -453,13 +455,51 @@ class SolverWorker {
 	/**
 	 * Stops the solver.
 	 */
-	stopSolver() {
+	pauseSolver() {
 		this.stop = true;
 
 		// Clear the next batch timeout
 		if (this.nextBatchTimeout) {
 			clearTimeout(this.nextBatchTimeout);
 		}
+	}
+
+	/**
+	 * Resets the solver
+	 */
+	resetSolver() {
+		this.stop = true;
+		this.numMoves = 0;
+		this.lastPlacedCase = -1;
+		this.maxNumCase = 0;
+		this.stack = [];
+		this.placedPieces = new Array(256).fill(undefined);
+		this.updateIntervalMs = 500; // Send updates every 500 milliseconds
+		this.lastUpdateTime = performance.now();
+
+		// Index maps for quick lookup based on edge colors
+		this.edgeIndex = {
+			top: new Map(),
+			right: new Map(),
+			bottom: new Map(),
+			left: new Map(),
+		};
+
+		this.initDict(PieceCodes);
+		this.initStack();
+		this.placeCenterPiece();
+
+		// Send the initial state
+		const initialState: SolverResponse = {
+			type: 'update',
+			data: {
+				boardState: this.getBoardState(),
+				numMoves: this.numMoves,
+				lastPlacedCase: this.lastPlacedCase,
+			},
+		};
+
+		postMessage(initialState, [initialState.data.boardState]);
 	}
 }
 
@@ -476,8 +516,11 @@ self.onmessage = (event: MessageEvent<SolverMessage>) => {
 		case 'solve':
 			solver.solve();
 			break;
-		case 'stop':
-			solver.stopSolver();
+		case 'pause':
+			solver.pauseSolver();
+			break;
+		case 'reset':
+			solver.resetSolver();
 			break;
 	}
 };

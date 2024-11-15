@@ -18,6 +18,7 @@ import SolverWorker from './SolverWorker.ts?worker';
 import {Board, type BoardState} from './Board.ts';
 import {Statistics} from './Statistics.ts';
 import TextureManager from "./TextureManager.ts";
+import I18n from './i18n.ts'; // Import the I18n class
 
 const easeOutQuad = (t: number, b: number, c: number, d: number) => {
 	const e = t / d;
@@ -128,6 +129,7 @@ export class Game {
 	cameraController: CameraController;
 	solverWorker = new SolverWorker();
 	lastTime: number;
+	i18n: I18n; // Add i18n instance
 
 	constructor() {
 		// Iteration settings
@@ -188,13 +190,29 @@ export class Game {
 		// Camera Controller
 		this.cameraController = new CameraController(this);
 
+		// Initialize i18n
+		this.i18n = new I18n();
+		const savedLang = localStorage.getItem('language') || window.navigator.language.slice(0, 2) || 'en';
+		this.i18n.loadTranslations(savedLang);
+
+		// Set the language select value
+		const languageSelect = document.getElementById('languageSelect') as HTMLSelectElement;
+		if (languageSelect) {
+			languageSelect.value = savedLang;
+		}
+
 		// Bind methods
 		this.animate = this.animate.bind(this);
 		this.onResize = this.onResize.bind(this);
 		this.onStart = this.onStart.bind(this);
-		this.onStop = this.onStop.bind(this);
+		this.onPause = this.onPause.bind(this);
 		this.onSwitchCamera = this.onSwitchCamera.bind(this);
+		this.onReset = this.onReset.bind(this);
 		this.updateStatsUI = this.updateStatsUI.bind(this);
+		this.onLanguageChange = this.onLanguageChange.bind(this);
+		this.openInfoModal = this.openInfoModal.bind(this);
+		this.closeInfoModal = this.closeInfoModal.bind(this);
+		this.resetSolverWithMethod = this.resetSolverWithMethod.bind(this);
 
 		// Setup event listeners
 		window.addEventListener('resize', this.onResize, false);
@@ -202,17 +220,70 @@ export class Game {
 		// Button Event Listeners
 		const startButton = document.getElementById('start');
 		const stopButton = document.getElementById('stop');
+		const resetButton = document.getElementById('reset');
 		const switchCameraButton = document.getElementById('switchCamera');
 
-		if (startButton) startButton.addEventListener('click', this.onStart);
-		if (stopButton) stopButton.addEventListener('click', this.onStop);
-		if (switchCameraButton) switchCameraButton.addEventListener('click', this.onSwitchCamera);
+		if (startButton) startButton.addEventListener('click', this.onStart.bind(this));
+		if (stopButton) stopButton.addEventListener('click', this.onPause.bind(this));
+		if (switchCameraButton) switchCameraButton.addEventListener('click', this.onSwitchCamera.bind(this));
+		if (resetButton) resetButton.addEventListener('click', this.onReset.bind(this));
+		if (languageSelect) languageSelect.addEventListener('change', this.onLanguageChange);
+
+		// Modal Event Listeners
+		const openInfoModalButton = document.getElementById('openInfoModal');
+		const closeInfoModalButton = document.getElementById('closeInfoModal');
+		const closeInfoModalFooterButton = document.getElementById('closeInfoModalFooter');
+
+		if (openInfoModalButton) openInfoModalButton.addEventListener('click', this.openInfoModal);
+		if (closeInfoModalButton) closeInfoModalButton.addEventListener('click', this.closeInfoModal);
+		if (closeInfoModalFooterButton) closeInfoModalFooterButton.addEventListener('click', this.closeInfoModal);
 
 		this.solverWorker.onmessage = this.onSolverMessage.bind(this);
 		this.lastTime = Date.now();
 
 		// Update stats UI periodically
 		setInterval(this.updateStatsUI, 1000 / 60); // 60 FPS
+	}
+
+	/**
+	 * Handles language change event.
+	 */
+	async onLanguageChange(event: Event) {
+		const select = event.target as HTMLSelectElement;
+		const selectedLang = select.value;
+		await this.i18n.loadTranslations(selectedLang);
+		localStorage.setItem('language', selectedLang);
+	}
+
+	/**
+	 * Opens the information modal.
+	 */
+	openInfoModal() {
+		const infoModal = document.getElementById('infoModal');
+		if (infoModal) {
+			infoModal.classList.remove('hidden');
+		}
+	}
+
+	/**
+	 * Closes the information modal.
+	 */
+	closeInfoModal() {
+		const infoModal = document.getElementById('infoModal');
+		if (infoModal) {
+			infoModal.classList.add('hidden');
+		}
+	}
+
+	/**
+	 * Resets the solver and initializes it with the selected solving method.
+	 */
+	resetSolverWithMethod(method: 'line' | 'spiral') {
+		this.resetSolver();
+		this.stats.reset();
+		// Send the selected method to the solver worker
+		this.solverWorker.postMessage({type: 'init', data: {pieceCodes: PieceCodes, method: method}});
+		this.animate();
 	}
 
 	/**
@@ -259,7 +330,7 @@ export class Game {
 				this.updateBoard(boardStateArray);
 
 				if (message.type === 'finished') {
-					this.stopSolver();
+					this.pauseSolver();
 				}
 				break;
 			}
@@ -277,15 +348,22 @@ export class Game {
 	 * Starts the solver by sending a message to the worker.
 	 */
 	startSolver() {
-		// Start the solver
+		// Start the solver with the selected method
 		this.solverWorker.postMessage({type: 'solve'});
 	}
 
 	/**
-	 * Stops the solver by sending a message to the worker.
+	 * Pause the solver by sending a message to the worker.
 	 */
-	stopSolver() {
-		this.solverWorker.postMessage({type: 'stop'});
+	pauseSolver() {
+		this.solverWorker.postMessage({type: 'pause'});
+	}
+
+	/**
+	 * Resets the solver by sending a message to the worker.
+	 */
+	resetSolver() {
+		this.solverWorker.postMessage({type: 'reset'});
 	}
 
 	/**
@@ -306,26 +384,59 @@ export class Game {
 		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
 		if (startButton) {
 			startButton.disabled = true;
-			startButton.classList.remove('disabled');
+			startButton.classList.add('disabled');
 		}
 
 		// Enable the stop button
 		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
 		if (stopButton) {
 			stopButton.disabled = false;
-			stopButton.classList.add('disabled');
+			stopButton.classList.remove('disabled');
+		}
+
+		// Enable the reset button
+		const resetButton: HTMLButtonElement | undefined = document.getElementById('reset') as HTMLButtonElement;
+		if (resetButton) {
+			resetButton.disabled = false;
+			resetButton.classList.remove('disabled');
 		}
 	}
 
-	onStop() {
-		this.stopSolver();
+	onPause() {
+		this.pauseSolver();
 		this.stats.stop();
 
 		// Enable the start button
 		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
 		if (startButton) {
 			startButton.disabled = false;
-			startButton.classList.add('disabled');
+			startButton.classList.remove('disabled');
+		}
+
+		// Disable the stop button
+		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
+		if (stopButton) {
+			stopButton.disabled = true;
+			stopButton.classList.remove('disabled');
+		}
+	}
+
+	onReset() {
+		this.resetSolver();
+		this.stats.reset();
+
+		// Disable the reset button
+		const resetButton: HTMLButtonElement | undefined = document.getElementById('reset') as HTMLButtonElement;
+		if (resetButton) {
+			resetButton.disabled = true;
+			resetButton.classList.add('disabled');
+		}
+
+		// Enable the start button
+		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
+		if (startButton) {
+			startButton.disabled = false;
+			startButton.classList.remove('disabled');
 		}
 
 		// Disable the stop button
@@ -406,7 +517,7 @@ export class Game {
 		this.init();
 		this.solverWorker.postMessage({
 			type: 'init', data: {
-				pieceCodes: PieceCodes
+				pieceCodes: PieceCodes,
 			}
 		});
 		this.animate();
@@ -437,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('beforeunload', () => {
 	// Stop the solver worker
-	game.stopSolver();
+	game.resetSolver();
 
 	// Close the worker
 	game.solverWorker.terminate();

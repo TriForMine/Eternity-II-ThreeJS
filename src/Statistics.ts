@@ -22,6 +22,8 @@ export class Statistics {
 	numMoves: number;
 	totalNumMoves: number;
 
+	private paused: boolean;
+
 	// FPS-related properties
 	fps_display: string;
 	private frameCount: number;
@@ -50,7 +52,7 @@ export class Statistics {
 
 		// Initialize smoothed moves per second properties
 		this.movesPerSecSamples = [];
-		this.maxSamples = 5; // e.g., average over last 5 seconds
+		this.maxSamples = 16; // e.g., average over last 16 samples
 
 		// mini board with the best solution found
 		this.miniBoard = new Board(
@@ -59,6 +61,8 @@ export class Statistics {
 			[...this.game.board.placedPieces.filter((piece) => piece !== undefined)]
 		);
 		this.miniBoard.mesh.scale.set(0.135, 0.135, 0.135);
+
+		this.paused = false;
 	}
 
 	/**
@@ -69,13 +73,16 @@ export class Statistics {
 		this.intervalID = setInterval(() => {
 			this.update();
 		}, 1000);
+		this.paused = false;
 	}
 
 	/**
 	 * Should be called every frame to increment the frame count and moves.
 	 */
 	incrementFrame() {
-		this.frameCount++;
+		if (!this.paused) {
+			this.frameCount++;
+		}
 	}
 
 	/**
@@ -160,5 +167,28 @@ export class Statistics {
 		clearInterval(this.intervalID);
 		this.intervalID = undefined;
 		this.clock.stop(); // Stop the clock when statistics stop
+		this.paused = true;
+	}
+
+	/**
+	 * Resets the statistics.
+	 */
+	reset() {
+		this.stop();
+		this.clock.stop();
+		this.moves_per_sec = "0";
+		this.elapsed_time = "00:00:00";
+		this.number_of_pieces = "0 /256";
+		this.best_solution = "0 /256";
+		this.fps_display = "0 fps";
+		this.movesPerSec = 0;
+		this.bestSolution = 0;
+		this.frameCount = 0;
+		this.fps = 0;
+		this.numMoves = 0;
+		this.totalNumMoves = 0;
+		this.lastPlacedCase = -1;
+		this.miniBoard.clearBoard();
+		this.movesPerSecSamples = [];
 	}
 }
