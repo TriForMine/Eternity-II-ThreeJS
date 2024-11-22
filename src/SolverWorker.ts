@@ -124,7 +124,7 @@ class SolverWorker {
 	}
 
 	/**
-	 * Places the center piece.
+	 * Places the centerpiece.
 	 */
 	placeCenterPiece() {
 		const centerPiece = Array.from(this.piecesMap.values()).find(piece => piece.name === 'FKRF');
@@ -135,6 +135,7 @@ class SolverWorker {
 			this.lastPlacedCase = 135;
 			this.removePieceFromEdgeIndex(centerPiece);
 		}
+
 	}
 
 	/**
