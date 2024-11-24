@@ -17,8 +17,12 @@ export type SolverMessage =
 }
 	| {
 	type: 'pause';
-} | {
+}
+	| {
 	type: 'reset';
+}
+	| {
+	type: 'nextStep';
 };
 
 export interface SolverResponse {
@@ -140,9 +144,10 @@ class SolverWorker {
 
 	/**
 	 * Processes steps until time slice expires and schedules the next batch.
+	 * In step-by-step mode, processes only one step.
 	 */
-	solveNextBatch() {
-		if (this.stop || this.stack.length === 0) {
+	solveNextBatch(stepByStep = false) {
+		if (this.stop && !stepByStep || this.stack.length === 0) {
 			// Solver has been stopped or finished
 			const finishedMessage: SolverResponse = {
 				type: 'finished',
@@ -156,37 +161,50 @@ class SolverWorker {
 			return;
 		}
 
-		const startTime = performance.now();
-		const timeSlice = 200; // milliseconds
-
-		while (performance.now() - startTime < timeSlice) {
-			if (this.stop || this.stack.length === 0) {
-				break;
-			}
+		if (stepByStep) {
+			// Process only one step
 			this.processStep();
+			this.sendUpdate();
+		} else {
+			const startTime = performance.now();
+			const timeSlice = 200; // milliseconds
 
-			// Check if it's time to send an update
-			if (performance.now() - this.lastUpdateTime >= this.updateIntervalMs) {
-				this.lastUpdateTime = performance.now();
-				const updateMessage: SolverResponse = {
-					type: 'update',
-					data: {
-						boardState: this.getBoardState(),
-						numMoves: this.numMoves,
-						lastPlacedCase: this.lastPlacedCase,
-					},
-				};
-				postMessage(updateMessage, [updateMessage.data.boardState]);
-				this.numMoves = 0; // Reset move count for the next interval
+			while (performance.now() - startTime < timeSlice) {
+				if (this.stop || this.stack.length === 0) {
+					break;
+				}
+				this.processStep();
+
+				// Check if it's time to send an update
+				if (performance.now() - this.lastUpdateTime >= this.updateIntervalMs) {
+					this.lastUpdateTime = performance.now();
+					this.sendUpdate();
+				}
+			}
+
+			// Schedule the next batch
+			if (!this.stop) {
+				this.nextBatchTimeout = setTimeout(() => {
+					this.solveNextBatch();
+				}, 0);
 			}
 		}
+	}
 
-		// Schedule the next batch
-		if (!this.stop) {
-			this.nextBatchTimeout = setTimeout(() => {
-				this.solveNextBatch();
-			}, 0);
-		}
+	/**
+	 * Sends an update message to the main thread.
+	 */
+	sendUpdate() {
+		const updateMessage: SolverResponse = {
+			type: 'update',
+			data: {
+				boardState: this.getBoardState(),
+				numMoves: this.numMoves,
+				lastPlacedCase: this.lastPlacedCase,
+			},
+		};
+		postMessage(updateMessage, [updateMessage.data.boardState]);
+		this.numMoves = 0;
 	}
 
 	/**
@@ -458,6 +476,7 @@ class SolverWorker {
 	 */
 	pauseSolver() {
 		this.stop = true;
+		this.sendUpdate();
 
 		// Clear the next batch timeout
 		if (this.nextBatchTimeout) {
@@ -522,6 +541,9 @@ self.onmessage = (event: MessageEvent<SolverMessage>) => {
 			break;
 		case 'reset':
 			solver.resetSolver();
+			break;
+		case 'nextStep':
+			solver.solveNextBatch(true); // Process one step
 			break;
 	}
 };

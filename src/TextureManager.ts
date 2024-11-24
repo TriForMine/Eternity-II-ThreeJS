@@ -1,12 +1,16 @@
-import {type Texture, TextureLoader, SRGBColorSpace} from 'three';
+/**
+ * @file TextureManager.ts
+ * @description Manages loading and retrieval of textures for the pieces.
+ */
+
+import { type Texture, TextureLoader, SRGBColorSpace } from 'three';
 
 class TextureManager {
 	private static instance: TextureManager;
 	private textures = new Map<string, Texture>();
 	private loader = new TextureLoader();
 
-	private constructor() {
-	}
+	private constructor() {}
 
 	public static getInstance(): TextureManager {
 		if (!TextureManager.instance) {

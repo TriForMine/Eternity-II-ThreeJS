@@ -10,9 +10,9 @@ import {
 	TextureLoader,
 	type Scene,
 } from 'three';
-import type {PieceCode} from "./ListPiece.ts";
-import {rotateString} from "./Utils.ts";
-import TextureManager from "./TextureManager.ts";
+import type { PieceCode } from './ListPiece';
+import { rotateString } from './Utils';
+import TextureManager from './TextureManager';
 
 /**
  * Directions for edges.
@@ -82,7 +82,7 @@ export class Piece {
 			} else {
 				this.geometry = new BoxGeometry(scale, scale, 0.1);
 				const texture = TextureManager.getInstance().getTexture(name);
-				this.material = new MeshBasicMaterial({map: texture, transparent: false});
+				this.material = new MeshBasicMaterial({ map: texture, transparent: false });
 				this.mesh = new Mesh(this.geometry, this.material);
 			}
 		}
@@ -114,10 +114,10 @@ export class Piece {
 	 */
 	parseConnectors(rotatedName: PieceCode): Record<Direction, Connector> {
 		const connectors: Record<Direction, Connector> = {
-			top: {color: '*'},
-			right: {color: '*'},
-			bottom: {color: '*'},
-			left: {color: '*'},
+			top: { color: '*' },
+			right: { color: '*' },
+			bottom: { color: '*' },
+			left: { color: '*' },
 		};
 
 		const connectorChars = rotatedName.split(''); // e.g., ['A', 'Q', 'X', 'X']
@@ -145,11 +145,13 @@ export class Piece {
 
 	/**
 	 * Generates an outline around the piece to show error on the board.
+	 *
+	 * @param scene - The Three.js scene where the outline should be added.
 	 */
 	outline(scene: Scene) {
 		this.outlineGeometry = new BoxGeometry(5 / 16.7, 5 / 16.7, 0.1);
 		this.outlineMaterial = new MeshBasicMaterial({
-			map: new TextureLoader().load("/Eternity-II-ThreeJS/outline.png"),
+			map: new TextureLoader().load('/Eternity-II-ThreeJS/outline.png'),
 			transparent: true,
 		});
 		this.outlineMesh = new Mesh(this.outlineGeometry, this.outlineMaterial);
@@ -164,15 +166,39 @@ export class Piece {
 
 	/**
 	 * Removes the piece from the scene.
+	 *
+	 * @param scene - The Three.js scene from which the piece should be removed.
 	 */
 	remove(scene: Scene) {
 		if (!this.mesh) return;
 
 		scene.remove(this.mesh);
+
+		// Dispose of geometry and material
+		this.mesh.geometry.dispose();
+		if (Array.isArray(this.mesh.material)) {
+			for (const material of this.mesh.material) {
+				material.dispose();
+			}
+		} else {
+			this.mesh.material.dispose();
+		}
+
+		// Dispose of outline mesh, geometry, and material
+		if (this.outlineMesh) {
+			scene.remove(this.outlineMesh);
+			this.outlineGeometry?.dispose();
+			if (this.outlineMaterial?.map) {
+				this.outlineMaterial.map.dispose();
+			}
+			this.outlineMaterial?.dispose();
+		}
 	}
 
 	/**
 	 * Clones the current piece.
+	 *
+	 * @returns A new Piece instance that is a clone of the current piece.
 	 */
 	clone(): Piece {
 		if (!this.mesh) return new Piece(this.name, undefined, 0, 2.3 / 16.7);

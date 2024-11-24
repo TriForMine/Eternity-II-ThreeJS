@@ -1,24 +1,21 @@
-/**
- * @file main.ts
- * @description Main file for Eternity-II Backtracking Visualization
- */
+// main.ts
 
 import {
 	PerspectiveCamera,
 	Scene,
 	SRGBColorSpace,
 	TextureLoader,
-	WebGLRenderer
+	WebGLRenderer,
 } from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-import {PieceCodes} from './ListPiece.ts';
-import type {SolverResponse} from './SolverWorker.ts'
-import SolverWorker from './SolverWorker.ts?worker';
-import {Board, type BoardState} from './Board.ts';
-import {Statistics} from './Statistics.ts';
-import TextureManager from "./TextureManager.ts";
-import I18n from './i18n.ts'; // Import the I18n class
+import { PieceCodes } from './ListPiece';
+import type { SolverResponse } from './SolverWorker';
+import SolverWorker from './SolverWorker?worker';
+import { Board, type BoardState } from './Board';
+import { Statistics } from './Statistics';
+import TextureManager from './TextureManager';
+import I18n from './i18n';
 
 const easeOutQuad = (t: number, b: number, c: number, d: number) => {
 	const e = t / d;
@@ -34,12 +31,12 @@ interface CameraAnimationFrame {
 
 // Camera animation configurations
 const CAMERA_ANIMATION_CONFIG: {
-	[key: string]: CameraAnimationFrame
+	[key: string]: CameraAnimationFrame;
 } = {
-	"1": {camX: 1, camZ: 1, sceneX: 0, sceneZ: 0},
-	"2": {camX: -1, camZ: -0.335, sceneX: -5.5, sceneZ: -2},
-	"3": {camX: 0, camZ: 0.665, sceneX: -5.5, sceneZ: -2},
-	"4": {camX: 1, camZ: 0.335, sceneX: 5, sceneZ: 2}
+	'1': { camX: 1, camZ: 1, sceneX: 0, sceneZ: 0 },
+	'2': { camX: -1, camZ: -0.335, sceneX: -5.5, sceneZ: -2 },
+	'3': { camX: 0, camZ: 0.665, sceneX: -5.5, sceneZ: -2 },
+	'4': { camX: 1, camZ: 0.335, sceneX: 5, sceneZ: 2 },
 };
 
 class CameraController {
@@ -65,16 +62,16 @@ class CameraController {
 	 * Updates the camera animation
 	 */
 	updateAnimation() {
-		const {activeCamera} = this.game;
+		const { activeCamera } = this.game;
 		let from: CameraAnimationFrame;
 		let to: CameraAnimationFrame;
 
 		if (activeCamera === this.game.camera) {
-			from = CAMERA_ANIMATION_CONFIG["1"];
-			to = CAMERA_ANIMATION_CONFIG["2"];
+			from = CAMERA_ANIMATION_CONFIG['1'];
+			to = CAMERA_ANIMATION_CONFIG['2'];
 		} else {
-			from = CAMERA_ANIMATION_CONFIG["3"];
-			to = CAMERA_ANIMATION_CONFIG["4"];
+			from = CAMERA_ANIMATION_CONFIG['3'];
+			to = CAMERA_ANIMATION_CONFIG['4'];
 		}
 
 		const t = this.frames;
@@ -100,7 +97,7 @@ class CameraController {
 		this.game.requestCameraSwitch = false;
 		this.frames = 0;
 
-		const {activeCamera, camera, camera2, controls, controls2} = this.game;
+		const { activeCamera, camera, camera2, controls, controls2 } = this.game;
 
 		if (activeCamera === camera) {
 			controls.enabled = false;
@@ -129,23 +126,23 @@ export class Game {
 	cameraController: CameraController;
 	solverWorker = new SolverWorker();
 	lastTime: number;
-	i18n: I18n; // Add i18n instance
+	i18n: I18n;
+	isStepByStepMode: boolean;
 
 	constructor() {
-		// Iteration settings
 		this.requestCameraSwitch = false;
 
 		this.scene1 = new Scene();
 		this.scene1.position.x = 0;
 
 		this.scene2 = new Scene();
-		this.scene2.name = "scene2";
+		this.scene2.name = 'scene2';
 
 		const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
 		this.renderer = new WebGLRenderer({
 			canvas: canvas,
-			antialias: true
+			antialias: true,
 		});
 
 		this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -174,7 +171,7 @@ export class Game {
 
 		// Initialize background
 		const loader = new TextureLoader();
-		const backgroundTexture = loader.load("/Eternity-II-ThreeJS/George-peabody-library.jpg");
+		const backgroundTexture = loader.load('/Eternity-II-ThreeJS/George-peabody-library.jpg');
 		backgroundTexture.colorSpace = SRGBColorSpace;
 		backgroundTexture.wrapS = backgroundTexture.wrapT = 1000;
 		backgroundTexture.repeat.set(1, 1);
@@ -201,6 +198,9 @@ export class Game {
 			languageSelect.value = savedLang;
 		}
 
+		// Initialize step-by-step mode
+		this.isStepByStepMode = false;
+
 		// Bind methods
 		this.animate = this.animate.bind(this);
 		this.onResize = this.onResize.bind(this);
@@ -212,7 +212,8 @@ export class Game {
 		this.onLanguageChange = this.onLanguageChange.bind(this);
 		this.openInfoModal = this.openInfoModal.bind(this);
 		this.closeInfoModal = this.closeInfoModal.bind(this);
-		this.resetSolverWithMethod = this.resetSolverWithMethod.bind(this);
+		this.onNextStep = this.onNextStep.bind(this);
+		this.onToggleStepByStep = this.onToggleStepByStep.bind(this);
 
 		// Setup event listeners
 		window.addEventListener('resize', this.onResize, false);
@@ -222,11 +223,16 @@ export class Game {
 		const stopButton = document.getElementById('stop');
 		const resetButton = document.getElementById('reset');
 		const switchCameraButton = document.getElementById('switchCamera');
+		const nextStepButton = document.getElementById('nextStep');
+		const toggleStepByStepCheckbox = document.getElementById('toggleStepByStep') as HTMLInputElement;
 
 		if (startButton) startButton.addEventListener('click', this.onStart.bind(this));
 		if (stopButton) stopButton.addEventListener('click', this.onPause.bind(this));
 		if (switchCameraButton) switchCameraButton.addEventListener('click', this.onSwitchCamera.bind(this));
 		if (resetButton) resetButton.addEventListener('click', this.onReset.bind(this));
+		if (nextStepButton) nextStepButton.addEventListener('click', this.onNextStep.bind(this));
+		if (toggleStepByStepCheckbox) toggleStepByStepCheckbox.addEventListener('change', this.onToggleStepByStep.bind(this));
+
 		if (languageSelect) languageSelect.addEventListener('change', this.onLanguageChange);
 
 		// Modal Event Listeners
@@ -276,17 +282,6 @@ export class Game {
 	}
 
 	/**
-	 * Resets the solver and initializes it with the selected solving method.
-	 */
-	resetSolverWithMethod(method: 'line' | 'spiral') {
-		this.resetSolver();
-		this.stats.reset();
-		// Send the selected method to the solver worker
-		this.solverWorker.postMessage({type: 'init', data: {pieceCodes: PieceCodes, method: method}});
-		this.animate();
-	}
-
-	/**
 	 * Initializes the game
 	 */
 	init() {
@@ -301,7 +296,7 @@ export class Game {
 		switch (message.type) {
 			case 'update':
 			case 'finished': {
-				const {boardState, numMoves, lastPlacedCase} = message.data;
+				const { boardState, numMoves, lastPlacedCase } = message.data;
 				const dataArray = new Uint8Array(boardState);
 				const numPieces = dataArray.length / 3;
 				const boardStateArray: BoardState = [];
@@ -348,22 +343,25 @@ export class Game {
 	 * Starts the solver by sending a message to the worker.
 	 */
 	startSolver() {
-		// Start the solver with the selected method
-		this.solverWorker.postMessage({type: 'solve'});
+		if (this.isStepByStepMode) {
+			// In step-by-step mode, do not start continuous solving
+		} else {
+			this.solverWorker.postMessage({ type: 'solve' });
+		}
 	}
 
 	/**
 	 * Pause the solver by sending a message to the worker.
 	 */
 	pauseSolver() {
-		this.solverWorker.postMessage({type: 'pause'});
+		this.solverWorker.postMessage({ type: 'pause' });
 	}
 
 	/**
 	 * Resets the solver by sending a message to the worker.
 	 */
 	resetSolver() {
-		this.solverWorker.postMessage({type: 'reset'});
+		this.solverWorker.postMessage({ type: 'reset' });
 	}
 
 	/**
@@ -381,14 +379,14 @@ export class Game {
 		this.stats.start();
 
 		// Disable the start button
-		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
+		const startButton = document.getElementById('start') as HTMLButtonElement;
 		if (startButton) {
 			startButton.disabled = true;
 			startButton.classList.add('disabled');
 		}
 
 		// Enable the stop button
-		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
+		const stopButton = document.getElementById('stop') as HTMLButtonElement;
 		if (stopButton) {
 			stopButton.disabled = false;
 			stopButton.classList.remove('disabled');
@@ -404,17 +402,18 @@ export class Game {
 
 	onPause() {
 		this.pauseSolver();
+		this.stats.resetMovesPerSecSamples();
 		this.stats.stop();
 
 		// Enable the start button
-		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
+		const startButton = document.getElementById('start') as HTMLButtonElement;
 		if (startButton) {
 			startButton.disabled = false;
 			startButton.classList.remove('disabled');
 		}
 
 		// Disable the stop button
-		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
+		const stopButton = document.getElementById('stop') as HTMLButtonElement;
 		if (stopButton) {
 			stopButton.disabled = true;
 			stopButton.classList.remove('disabled');
@@ -423,24 +422,25 @@ export class Game {
 
 	onReset() {
 		this.resetSolver();
+		this.stats.resetMovesPerSecSamples();
 		this.stats.reset();
 
 		// Disable the reset button
-		const resetButton: HTMLButtonElement | undefined = document.getElementById('reset') as HTMLButtonElement;
+		const resetButton = document.getElementById('reset') as HTMLButtonElement;
 		if (resetButton) {
 			resetButton.disabled = true;
 			resetButton.classList.add('disabled');
 		}
 
 		// Enable the start button
-		const startButton: HTMLButtonElement | undefined = document.getElementById('start') as HTMLButtonElement;
+		const startButton = document.getElementById('start') as HTMLButtonElement;
 		if (startButton) {
 			startButton.disabled = false;
 			startButton.classList.remove('disabled');
 		}
 
 		// Disable the stop button
-		const stopButton: HTMLButtonElement | undefined = document.getElementById('stop') as HTMLButtonElement;
+		const stopButton = document.getElementById('stop') as HTMLButtonElement;
 		if (stopButton) {
 			stopButton.disabled = true;
 			stopButton.classList.remove('disabled');
@@ -449,6 +449,49 @@ export class Game {
 
 	onSwitchCamera() {
 		this.switchCamera();
+		const switchCameraButton = document.getElementById('switchCameraText');
+		if (switchCameraButton) {
+			switchCameraButton.setAttribute('data-i18n', this.activeCamera === this.camera ? 'camera1' : 'camera2');
+			this.activeCamera === this.camera ? switchCameraButton.textContent = this.i18n.t('camera1') : switchCameraButton.textContent = this.i18n.t('camera2');
+		}
+	}
+
+	/**
+	 * Handles the "Next Step" button click.
+	 */
+	onNextStep() {
+		if (this.isStepByStepMode) {
+			this.solverWorker.postMessage({ type: 'nextStep' });
+		}
+	}
+
+	/**
+	 * Toggles the step-by-step mode.
+	 */
+	onToggleStepByStep(event: Event) {
+		const checkbox = event.target as HTMLInputElement;
+		this.isStepByStepMode = checkbox.checked;
+		const nextStepButton = document.getElementById('nextStep') as HTMLButtonElement;
+		const startButton = document.getElementById('start') as HTMLButtonElement;
+		const stopButton = document.getElementById('stop') as HTMLButtonElement;
+		const resetButton = document.getElementById('reset') as HTMLButtonElement;
+
+		if (this.isStepByStepMode) {
+			this.onPause();
+			// Show Next Step button
+			if (nextStepButton) nextStepButton.style.display = '';
+			// Hide Start, Pause, and Reset buttons
+			if (startButton) startButton.style.display = 'none';
+			if (stopButton) stopButton.style.display = 'none';
+			if (resetButton) resetButton.style.display = 'none';
+		} else {
+			// Hide Next Step button
+			if (nextStepButton) nextStepButton.style.display = 'none';
+			// Show Start, Pause, and Reset buttons
+			if (startButton) startButton.style.display = '';
+			if (stopButton) stopButton.style.display = '';
+			if (resetButton) resetButton.style.display = '';
+		}
 	}
 
 	/**
@@ -516,9 +559,10 @@ export class Game {
 	start() {
 		this.init();
 		this.solverWorker.postMessage({
-			type: 'init', data: {
+			type: 'init',
+			data: {
 				pieceCodes: PieceCodes,
-			}
+			},
 		});
 		this.animate();
 	}
@@ -544,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	TextureManager.getInstance().loadTextures(PieceCodes);
 	game.start();
-})
+});
 
 window.addEventListener('beforeunload', () => {
 	// Stop the solver worker
@@ -552,4 +596,4 @@ window.addEventListener('beforeunload', () => {
 
 	// Close the worker
 	game.solverWorker.terminate();
-})
+});

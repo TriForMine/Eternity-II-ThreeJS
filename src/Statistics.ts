@@ -22,8 +22,6 @@ export class Statistics {
 	numMoves: number;
 	totalNumMoves: number;
 
-	private paused: boolean;
-
 	// FPS-related properties
 	fps_display: string;
 	private frameCount: number;
@@ -62,7 +60,9 @@ export class Statistics {
 		);
 		this.miniBoard.mesh.scale.set(0.135, 0.135, 0.135);
 
-		this.paused = false;
+		this.intervalID = setInterval(() => {
+			this.update();
+		}, 1000);
 	}
 
 	/**
@@ -70,19 +70,13 @@ export class Statistics {
 	 */
 	start() {
 		this.clock.start(); // Ensure the clock starts when statistics start
-		this.intervalID = setInterval(() => {
-			this.update();
-		}, 1000);
-		this.paused = false;
 	}
 
 	/**
 	 * Should be called every frame to increment the frame count and moves.
 	 */
 	incrementFrame() {
-		if (!this.paused) {
-			this.frameCount++;
-		}
+		this.frameCount++;
 	}
 
 	/**
@@ -164,10 +158,14 @@ export class Statistics {
 	 * Stops the statistics update interval.
 	 */
 	stop() {
-		clearInterval(this.intervalID);
-		this.intervalID = undefined;
 		this.clock.stop(); // Stop the clock when statistics stop
-		this.paused = true;
+	}
+
+	/**
+	 * Resets the moves per second samples.
+	 */
+	resetMovesPerSecSamples() {
+		this.movesPerSecSamples = [];
 	}
 
 	/**
@@ -180,11 +178,8 @@ export class Statistics {
 		this.elapsed_time = "00:00:00";
 		this.number_of_pieces = "0 /256";
 		this.best_solution = "0 /256";
-		this.fps_display = "0 fps";
 		this.movesPerSec = 0;
 		this.bestSolution = 0;
-		this.frameCount = 0;
-		this.fps = 0;
 		this.numMoves = 0;
 		this.totalNumMoves = 0;
 		this.lastPlacedCase = -1;

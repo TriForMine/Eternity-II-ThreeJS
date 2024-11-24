@@ -1,4 +1,7 @@
-// src/i18n.ts
+/**
+ * @file i18n.ts
+ * @description Internationalization helper for managing translations.
+ */
 
 interface Translations {
 	[key: string]: string;
@@ -42,6 +45,10 @@ class I18n {
 				elem.textContent = this.translations[key];
 			}
 		}
+	}
+
+	t(key: string): string {
+		return this.translations[key] || key;
 	}
 
 	getCurrentLanguage(): string {

@@ -5,10 +5,18 @@
  * @description Board to represent the game board
  */
 
-import {BoxGeometry, Mesh, MeshBasicMaterial, type Scene, SRGBColorSpace, type Texture, TextureLoader} from 'three';
-import type {Game} from "./main.ts";
-import {Piece} from "./Piece.ts";
-import {match} from "./Utils.ts";
+import {
+	BoxGeometry,
+	Mesh,
+	MeshBasicMaterial,
+	type Scene,
+	SRGBColorSpace,
+	type Texture,
+	TextureLoader,
+} from 'three';
+import type { Game } from './main';
+import { Piece } from './Piece';
+import { match } from './Utils';
 
 export type BoardState = (PieceData | null)[];
 
@@ -31,13 +39,13 @@ export class Board {
 		this.game = game;
 		this.scene = scene;
 		this.geometry = new BoxGeometry(5.15, 5.15, 0.1);
-		const texture = new TextureLoader().load("/Eternity-II-ThreeJS/BoardEternity2.png");
+		const texture = new TextureLoader().load('/Eternity-II-ThreeJS/BoardEternity2.png');
 		texture.colorSpace = SRGBColorSpace;
 
-		this.material = new MeshBasicMaterial({map: texture, transparent: true});
+		this.material = new MeshBasicMaterial({ map: texture, transparent: true });
 
 		this.mesh = new Mesh(this.geometry, this.material);
-		this.outlineTexture = new TextureLoader().load("/Eternity-II-ThreeJS/outline.png");
+		this.outlineTexture = new TextureLoader().load('/Eternity-II-ThreeJS/outline.png');
 		this.placedPieces = placedPieces;
 		this.scene.add(this.mesh);
 	}
@@ -60,6 +68,9 @@ export class Board {
 
 	/**
 	 * Adds a piece to a specific spot on the board.
+	 *
+	 * @param tupleRotationPiece - A tuple containing the rotation and the piece.
+	 * @param spot - The spot index where the piece should be placed.
 	 */
 	addPieceToSpot(tupleRotationPiece: [number, Piece], spot: number) {
 		const piece = tupleRotationPiece[1];
@@ -72,8 +83,8 @@ export class Board {
 		let offsetZ = 0.1;
 
 		if (piece.isClone) {
-			width = .66 / 17;
-			height = .66 / 17;
+			width = 0.66 / 17;
+			height = 0.66 / 17;
 			offsetX = offsetX / 8;
 			offsetY = offsetY / 8;
 			offsetZ = offsetZ / 8;
@@ -81,12 +92,12 @@ export class Board {
 			width = 5 / 17;
 			height = 5 / 17;
 		}
-		const col = spot % 16 - 8;
+		const col = (spot % 16) - 8;
 		const row = -Math.floor(spot / 16) + 8;
 
 		piece.mesh?.rotateZ(this.toRadians(piece.rotation * 90));
 		if (this.placedPieces[spot] !== null && this.placedPieces[spot] !== undefined) {
-			this.placedPieces[spot].remove(this.scene);
+			this.placedPieces[spot]?.remove(this.scene);
 		}
 
 		this.placedPieces[spot] = piece;
@@ -101,6 +112,9 @@ export class Board {
 
 	/**
 	 * Removes a piece from a specific spot on the board.
+	 *
+	 * @param spot - The spot index to remove the piece from.
+	 * @returns The removed piece, if any.
 	 */
 	removePieceFromSpot(spot: number) {
 		const p = this.placedPieces[spot];
@@ -111,6 +125,9 @@ export class Board {
 
 	/**
 	 * Gets constraints for a spot.
+	 *
+	 * @param spot - The spot index on the board.
+	 * @returns A string representing the constraints for that spot.
 	 */
 	getConstraints(spot: number): string {
 		const constraints = {
@@ -133,25 +150,31 @@ export class Board {
 
 	/**
 	 * Gets the edges of a specific spot on the board.
+	 *
+	 * @param spot - The spot index on the board.
+	 * @param edge - The edge to retrieve ('top', 'right', 'bottom', 'left').
+	 * @returns The edge value or '*' if not applicable.
 	 */
 	getEdges(spot: number, edge: string): string {
 		if (this.placedPieces[spot] !== null && this.placedPieces[spot] !== undefined) {
 			switch (edge) {
-				case "top":
+				case 'top':
 					return this.placedPieces[spot]?.rotatedName[0];
-				case "right":
+				case 'right':
 					return this.placedPieces[spot]?.rotatedName[1];
-				case "bottom":
+				case 'bottom':
 					return this.placedPieces[spot]?.rotatedName[2];
-				case "left":
+				case 'left':
 					return this.placedPieces[spot]?.rotatedName[3];
 			}
 		}
-		return "*";
+		return '*';
 	}
 
 	/**
 	 * Checks the integrity of the board.
+	 *
+	 * @returns True if the board is valid, false otherwise.
 	 */
 	checkIntegrity(): boolean {
 		for (let i = 0; i < 256; i++) {
@@ -165,11 +188,14 @@ export class Board {
 				}
 			}
 		}
-		return true
+		return true;
 	}
 
 	/**
 	 * Converts an angle from degrees to radians.
+	 *
+	 * @param angle - The angle in degrees.
+	 * @returns The angle in radians.
 	 */
 	toRadians(angle: number) {
 		return angle * (Math.PI / 180);
@@ -177,6 +203,8 @@ export class Board {
 
 	/**
 	 * Gets the number of pieces currently placed on the board.
+	 *
+	 * @returns The number of placed pieces.
 	 */
 	length() {
 		let len = 0;
@@ -190,18 +218,20 @@ export class Board {
 
 	/**
 	 * Clones the current state of the board.
+	 *
+	 * @returns A cloned array of placed pieces.
 	 */
 	clone(): (Piece | undefined)[] {
-		const Piece_On_Board = [];
+		const piecesOnBoard = [];
 		for (let i = 0; i < this.placedPieces.length; i++) {
 			const piece = this.placedPieces[i];
 			if (piece !== undefined && piece !== null) {
-				Piece_On_Board.push(piece.clone());
+				piecesOnBoard.push(piece.clone());
 			} else {
-				Piece_On_Board.push(undefined);
+				piecesOnBoard.push(undefined);
 			}
 		}
-		return Piece_On_Board;
+		return piecesOnBoard;
 	}
 
 	/**
