@@ -452,7 +452,11 @@ export class Game {
 		const switchCameraButton = document.getElementById('switchCameraText');
 		if (switchCameraButton) {
 			switchCameraButton.setAttribute('data-i18n', this.activeCamera === this.camera ? 'camera1' : 'camera2');
-			this.activeCamera === this.camera ? switchCameraButton.textContent = this.i18n.t('camera1') : switchCameraButton.textContent = this.i18n.t('camera2');
+			if (this.activeCamera === this.camera) {
+				switchCameraButton.textContent = this.i18n.t('camera1')
+			} else {
+				switchCameraButton.textContent = this.i18n.t('camera2');
+			}
 		}
 	}
 
